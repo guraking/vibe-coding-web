@@ -74,13 +74,13 @@ export default function ExportModal({ files, onClose, onSuccess }: Props) {
             />
           </div>
           <a
-            href="https://github.com/settings/tokens/new?scopes=repo&description=VibeCoding"
+            href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=VibeCoding"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1"
             style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }}
           >
-            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo scope
+            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo + workflow scope
           </a>
         </div>
 

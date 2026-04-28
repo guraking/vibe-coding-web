@@ -4,7 +4,7 @@ import { fetchRepoFiles, detectProjectType } from '../services/github'
 
 interface Props {
   onClose: () => void
-  onSuccess: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue', owner: string, repo: string) => void
+  onSuccess: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => void
 }
 
 export default function ImportModal({ onClose, onSuccess }: Props) {
@@ -21,10 +21,10 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
     setProgress('저장소 정보 가져오는 중...')
     try {
       if (token.trim()) localStorage.setItem('vibe_gh_token', token.trim())
-      const { files, owner, repo } = await fetchRepoFiles(url.trim(), token.trim() || undefined)
+      const { files, owner, repo, branch } = await fetchRepoFiles(url.trim(), token.trim() || undefined)
       setProgress(`${Object.keys(files).length}개 파일 로드 완료!`)
       const projectType = detectProjectType(files)
-      onSuccess(files, projectType, owner, repo)
+      onSuccess(files, projectType, owner, repo, branch)
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류')
       setStatus('error')
@@ -109,13 +109,13 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             />
           </div>
           <a
-            href="https://github.com/settings/tokens/new?scopes=repo&description=VibeCoding"
+            href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=VibeCoding"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1"
             style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }}
           >
-            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo scope
+            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo + workflow scope
           </a>
         </div>
 

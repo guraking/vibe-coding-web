@@ -1,7 +1,8 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2 } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound } from 'lucide-react'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
+import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
 
 interface Props {
   files: Record<string, string>
@@ -10,6 +11,8 @@ interface Props {
   isLoading: boolean
   onImport: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue') => void
 }
+
+type GithubRepo = { owner: string; repo: string; branch: string }
 
 type Tab = 'preview' | 'code'
 
@@ -52,9 +55,16 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeKey, setIframeKey] = useState(0)
   const blobUrlRef = useRef<string>('')
+  const isImportRef = useRef(false)
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [githubRepo, setGithubRepo] = useState<{ owner: string; repo: string } | null>(null)
+  const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(null)
+  const [deployUrl, setDeployUrl] = useState<string | null>(null)
+  const [deployLoading, setDeployLoading] = useState(false)
+  const [deployStatus, setDeployStatus] = useState('')
+  const [deployError, setDeployError] = useState('')
+  const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token'>('idle')
+  const [deployToken, setDeployToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
 
   const fileNames = Object.keys(files).sort((a, b) => {
     const order = ['index.html', 'package.json', 'vite.config.js']
@@ -77,19 +87,19 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
     return url
   }, [files, projectType])
 
-  // CodeSandbox URL after GitHub export
-  const sandboxUrl = githubRepo
-    ? `https://codesandbox.io/embed/github/${githubRepo.owner}/${githubRepo.repo}/tree/main?fontsize=13&theme=dark&view=preview&hidenavigation=1`
-    : ''
+  // StackBlitz 대신 GitHub Deployments에서 가져온 실제 배포 URL 사용
+  // HTML은 로컬 blob, React/Vue는 deployUrl
+  const previewSrc = blobUrl || deployUrl || ''
 
-  useEffect(() => {
-    if (previewVersion > 0) setIframeKey(k => k + 1)
-  }, [previewVersion])
-
-  // Reset github repo when new project is generated
   useEffect(() => {
     if (hasFiles) {
+      if (isImportRef.current) {
+        isImportRef.current = false
+        setSelectedFile(fileNames[0] || 'index.html')
+        return
+      }
       setGithubRepo(null)
+      setDeployUrl(null)
       setSelectedFile(fileNames[0] || 'index.html')
     }
   }, [files])
@@ -105,26 +115,70 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   }
   const refresh = () => setIframeKey(k => k + 1)
   const openNew = () => {
-    if (sandboxUrl) window.open(`https://codesandbox.io/p/github/${githubRepo!.owner}/${githubRepo!.repo}/main`, '_blank')
-    else if (blobUrl) window.open(blobUrl, '_blank')
+    const target = blobUrl || deployUrl
+    if (target) window.open(target, '_blank')
+    else if (githubRepo) window.open(`https://github.com/${githubRepo.owner}/${githubRepo.repo}/deployments`, '_blank')
   }
 
   const handleExportSuccess = (owner: string, repo: string) => {
-    setGithubRepo({ owner, repo })
+    setGithubRepo({ owner, repo, branch: 'main' })
+    setDeployUrl(null)
+    setDeployError('')
+    setDeployStep('idle')
     setShowExport(false)
     setIframeKey(k => k + 1)
   }
 
-  const handleImportSuccess = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string) => {
+  const startDeploy = async (owner: string, repo: string, branch: string, token: string) => {
+    localStorage.setItem('vibe_gh_token', token)
+    setDeployToken(token)
+    setDeployLoading(true)
+    setDeployStep('deploying')
+    setDeployError('')
+    setDeployStatus('')
+    try {
+      const url = await deployToGitHubPages(token, owner, repo, branch, setDeployStatus)
+      setDeployUrl(url)
+      setDeployStatus('')
+      setDeployStep('idle')
+      setIframeKey(k => k + 1)
+    } catch (err) {
+      setDeployError(err instanceof Error ? err.message : '배포 실패')
+      setDeployStatus('')
+      setDeployStep('idle')
+    } finally {
+      setDeployLoading(false)
+    }
+  }
+
+  const handleImportSuccess = async (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => {
+    isImportRef.current = true
     setShowImport(false)
-    setGithubRepo({ owner, repo })
+    setGithubRepo({ owner, repo, branch })
+    setDeployUrl(null)
+    setDeployError('')
+    setDeployStep('idle')
     onImport(importedFiles, importedType)
     setTab('preview')
     setIframeKey(k => k + 1)
+    // HTML은 blob으로 바로 표시되므로 배포 URL 불필요
+    if (importedType === 'react' || importedType === 'vue') {
+      setDeployStep('checking')
+      const token = localStorage.getItem('vibe_gh_token') || ''
+      const url = await fetchDeploymentUrl(owner, repo, token || undefined)
+      if (url) {
+        setDeployUrl(url)
+        setDeployStep('idle')
+        setIframeKey(k => k + 1)
+      } else if (token) {
+        // 자동 배포 시작
+        await startDeploy(owner, repo, branch, token)
+      } else {
+        // 토큰 없음 — 입력 요청
+        setDeployStep('needs-token')
+      }
+    }
   }
-
-  // What to show in preview iframe
-  const previewSrc = sandboxUrl ? sandboxUrl : blobUrl
 
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
@@ -233,8 +287,100 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
           {previewSrc ? (
             <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
               className="w-full h-full border-0" allow="fullscreen" title="Preview" />
+          ) : deployStep === 'checking' ? (
+            /* 임포트 직후 기존 배포 URL 조회 중 */
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <Loader2 style={{ width: 20, height: 20, color: 'var(--accent)' }} className="animate-spin" />
+              <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
+                기존 배포 URL 확인 중...
+              </p>
+            </div>
+          ) : deployStep === 'deploying' ? (
+            /* GitHub Pages 배포 진행 중 */
+            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <div style={{
+                width: 56, height: 56,
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--accent-bd)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Loader2 style={{ width: 24, height: 24, color: 'var(--accent)' }} className="animate-spin" />
+              </div>
+              <div className="text-center flex flex-col gap-1.5">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12 }}>
+                  GitHub Pages 배포 중
+                </p>
+                <p style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10, minHeight: 16 }}>
+                  {deployStatus || '준비 중...'}
+                </p>
+              </div>
+              {githubRepo && (
+                <a
+                  href={`https://github.com/${githubRepo.owner}/${githubRepo.repo}/actions`}
+                  target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1"
+                  style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}
+                >
+                  <ExternalLink style={{ width: 10, height: 10 }} /> Actions 로그 보기
+                </a>
+              )}
+            </div>
+          ) : deployStep === 'needs-token' ? (
+            /* 임포트한 React/Vue — 토큰 없어서 자동 배포 대기 중 */
+            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <div style={{
+                width: 56, height: 56,
+                background: 'var(--bg-panel)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <KeyRound style={{ width: 24, height: 24, color: 'var(--txt-3)' }} />
+              </div>
+              <div className="text-center">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12, marginBottom: 6 }}>
+                  GitHub 토큰 입력 후 자동 배포
+                </p>
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.7, maxWidth: 280 }}>
+                  토큰을 입력하면 즉시 GitHub Pages 배포가 시작됩니다.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5" style={{ width: 280 }}>
+                <div className="flex items-center gap-2 px-3 py-2"
+                  style={{ background: 'var(--bg)', border: `1px solid ${deployToken ? 'var(--ok-bd)' : 'var(--border)'}` }}>
+                  <KeyRound style={{ width: 12, height: 12, flexShrink: 0, color: 'var(--txt-3)' }} />
+                  <input
+                    type="password"
+                    value={deployToken}
+                    autoFocus
+                    onChange={e => { setDeployToken(e.target.value); setDeployError('') }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && deployToken.trim() && githubRepo) {
+                        startDeploy(githubRepo.owner, githubRepo.repo, githubRepo.branch, deployToken.trim())
+                      }
+                    }}
+                    placeholder="ghp_xxxxxxxxxxxx  (Enter로 배포 시작)"
+                    className="flex-1 bg-transparent outline-none"
+                    style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 11 }}
+                  />
+                </div>
+                <a
+                  href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=VibeCoding"
+                  target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1"
+                  style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }}
+                >
+                  <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo + workflow scope
+                </a>
+              </div>
+              {deployError && (
+                <p className="px-3 py-2 whitespace-pre-wrap text-center"
+                  style={{ color: 'var(--err)', background: 'var(--err-bg)', border: '1px solid var(--err-bd)', fontFamily: 'var(--mono-font)', fontSize: 10, maxWidth: 300, lineHeight: 1.6 }}>
+                  {deployError}
+                </p>
+              )}
+            </div>
           ) : hasFiles && (projectType === 'react' || projectType === 'vue') ? (
-            /* React / Vue project — needs GitHub export */
+            /* AI 생성 React/Vue — GitHub 내보내기 필요 */
             <div className="flex-1 flex flex-col items-center justify-center gap-5">
               <div style={{
                 width: 56, height: 56,
@@ -250,7 +396,7 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
                 </p>
                 <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.7, maxWidth: 260 }}>
                   {projectType === 'vue' ? 'Vue' : 'React'} requires a build step.<br />
-                  Export to GitHub → StackBlitz runs it instantly.
+                  Export to GitHub → StackBlitz previews it instantly.
                 </p>
               </div>
               <button
