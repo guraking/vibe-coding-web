@@ -99,7 +99,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               style={{ borderColor: '#3c3c3c' }}
             >
               <span className="text-sm font-medium" style={{ color: '#cccccc' }}>
-                OpenAI API 키 설정
+                Grok API 키 설정
               </span>
               <button
                 onClick={() => setShowModal(false)}
@@ -114,7 +114,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                 {'// 방법 1 (권장): .env.local 파일에 키를 설정하세요'}
               </p>
               <div className="mb-3 px-3 py-2 text-xs font-mono" style={{ background: '#1e1e1e', color: '#ce9178', border: '1px solid #3c3c3c' }}>
-                VITE_OPENAI_API_KEY=sk-...
+                VITE_GROK_API_KEY=xai-...
               </div>
               <p className="text-xs mb-3 font-mono" style={{ color: '#6a9955' }}>
                 {'// 방법 2: 아래에 직접 입력 (localStorage에 저장됩니다)'}

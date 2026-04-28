@@ -5,9 +5,9 @@ export interface Message {
 }
 
 export const MODELS = [
-  { id: 'gpt-4o', label: 'GPT-4o' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
-  { id: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+  { id: 'grok-3-mini', label: 'Grok 3 Mini (무료)' },
+  { id: 'grok-3', label: 'Grok 3' },
+  { id: 'grok-2', label: 'Grok 2' },
 ]
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer who builds beautiful, interactive web UIs instantly from natural language descriptions.
@@ -44,7 +44,7 @@ export async function* streamCode(
       ? `\n\nThe user is refining their existing page. Current HTML:\n\`\`\`html\n${currentHtml}\n\`\`\``
       : '')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -18,7 +18,7 @@ export default function App() {
   const [currentCode, setCurrentCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
-  const envKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+  const envKey = import.meta.env.VITE_GROK_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
   const [model, setModel] = useState(() => localStorage.getItem('vibe_model') ?? 'gpt-4o')
   const bufferRef = useRef('')
