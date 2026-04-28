@@ -9,6 +9,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
   const projectFilesRef = useRef<Record<string, string>>({})
+  const [projectType, setProjectType] = useState<'html' | 'react'>('html')
   const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
@@ -74,10 +75,11 @@ export default function App() {
           return updated
         })
       }
-      const { files, explanation } = parseVibe(bufferRef.current)
+      const { files, explanation, projectType: pType } = parseVibe(bufferRef.current)
       if (Object.keys(files).length > 0) {
         projectFilesRef.current = files
         setProjectFiles(files)
+        setProjectType(pType)
         setPreviewVersion(v => v + 1)
       }
       setMessages((prev) => {
@@ -179,7 +181,7 @@ export default function App() {
           </>
         )}
 
-        <PreviewPanel files={projectFiles} previewVersion={previewVersion} isLoading={isLoading} />
+        <PreviewPanel files={projectFiles} projectType={projectType} previewVersion={previewVersion} isLoading={isLoading} />
       </div>
     </div>
   )

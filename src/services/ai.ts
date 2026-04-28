@@ -2,6 +2,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   files?: Record<string, string>
+  projectType?: 'html' | 'react'
 }
 
 export const MODELS = [
@@ -12,45 +13,79 @@ export const MODELS = [
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer who builds beautiful multi-file web projects instantly from natural language.
 
-Generate a complete project with SEPARATE files. Your response MUST use EXACTLY this format:
+## Mode 1: HTML Project (default)
+For simple web pages, landing pages, widgets, games, calculators, dashboards, etc.:
 
 <VIBE_FILE name="index.html">
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Title</title>
-  <link rel="stylesheet" href="style.css" />
-  <!-- CDN libraries here if needed -->
-</head>
-<body>
-  <!-- HTML here -->
-  <script src="app.js"></script>
-</body>
-</html>
+<!DOCTYPE html>...
 </VIBE_FILE>
 <VIBE_FILE name="style.css">
-/* All CSS here */
+/* CSS here */
 </VIBE_FILE>
 <VIBE_FILE name="app.js">
-// All JavaScript here
+// JS here
 </VIBE_FILE>
-<VIBE_EXPLANATION>
-[1-2 sentence description in Korean of what was built]
-</VIBE_EXPLANATION>
+<VIBE_TYPE>html</VIBE_TYPE>
+<VIBE_EXPLANATION>[Korean description]</VIBE_EXPLANATION>
 
-Rules:
-- ALWAYS split into at least index.html + style.css + app.js
-- index.html references style.css and app.js as relative paths
-- You MAY add CDN libraries in index.html <head>: Tailwind (<script src="https://cdn.tailwindcss.com"></script>), Chart.js, Alpine.js, Three.js, etc.
-- Visually stunning: CSS animations, gradients, shadows, modern design
-- Dark theme by default unless user requests light
-- Fully interactive and functional JavaScript
-- Responsive layout
-- When refining: keep design language consistent, improve only what was asked
-- NEVER put JS in HTML inline script tags — put it in app.js
-- NEVER put CSS in HTML style tags — put it in style.css`
+HTML mode rules:
+- ALWAYS split into index.html + style.css + app.js
+- index.html links style.css and app.js as relative paths
+- Add CDN libs in <head>: Tailwind, Chart.js, Alpine.js, Three.js, etc.
+- NEVER inline CSS in style tags or JS in script tags
+- Visually stunning: animations, gradients, shadows, dark theme by default
+- Fully interactive JavaScript, responsive layout
+
+## Mode 2: React Project
+ONLY when user explicitly asks for React, or needs component lifecycle, hooks, state management, routing:
+
+<VIBE_FILE name="package.json">
+{
+  "name": "vibe-app",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build" },
+  "dependencies": { "react": "^18.3.0", "react-dom": "^18.3.0" },
+  "devDependencies": { "@vitejs/plugin-react": "^4.3.0", "vite": "^6.0.0" }
+}
+</VIBE_FILE>
+<VIBE_FILE name="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+export default defineConfig({ plugins: [react()] })
+</VIBE_FILE>
+<VIBE_FILE name="index.html">
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vibe App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+</VIBE_FILE>
+<VIBE_FILE name="src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>)
+</VIBE_FILE>
+<VIBE_FILE name="src/index.css">
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8f4; }
+</VIBE_FILE>
+<VIBE_FILE name="src/App.jsx">
+// Main App component
+</VIBE_FILE>
+<!-- Additional component files as needed: src/components/Foo.jsx -->
+<VIBE_TYPE>react</VIBE_TYPE>
+<VIBE_EXPLANATION>[Korean description]</VIBE_EXPLANATION>
+
+React mode rules:
+- MUST include package.json, vite.config.js, index.html, src/main.jsx, src/index.css, src/App.jsx
+- Use Tailwind via CDN in index.html (NO npm install needed for Tailwind)
+- Split into meaningful components in src/components/
+- Fully interactive with React hooks (useState, useEffect, etc.)
+- Dark theme by default
+- When refining: keep design language consistent, improve only what was asked`
 
 export async function* streamCode(
   apiKey: string,
@@ -123,9 +158,11 @@ export async function* streamCode(
   }
 }
 
-export function parseVibe(raw: string): { files: Record<string, string>; explanation: string } {
+export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' } {
   const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([\/\s\S]*?)<\/VIBE_FILE>/g)]
   const explMatch = raw.match(/<VIBE_EXPLANATION>([\s\S]*?)<\/VIBE_EXPLANATION>/)
+  const typeMatch = raw.match(/<VIBE_TYPE>(html|react)<\/VIBE_TYPE>/)
+  const projectType: 'html' | 'react' = typeMatch?.[1] === 'react' ? 'react' : 'html'
 
   const files: Record<string, string> = {}
   for (const [, name, content] of fileMatches) {
@@ -138,8 +175,12 @@ export function parseVibe(raw: string): { files: Record<string, string>; explana
     if (htmlMatch) files['index.html'] = htmlMatch[1].trim()
   }
 
+  // Auto-detect React if .jsx/.tsx files present
+  const isReact = projectType === 'react' || Object.keys(files).some(f => f.endsWith('.jsx') || f.endsWith('.tsx'))
+
   return {
     files,
     explanation: explMatch?.[1]?.trim() ?? '',
+    projectType: isReact ? 'react' : 'html',
   }
 }

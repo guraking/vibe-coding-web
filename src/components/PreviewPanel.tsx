@@ -1,87 +1,93 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork } from 'lucide-react'
+import ExportModal from './ExportModal'
 
 interface Props {
   files: Record<string, string>
+  projectType: 'html' | 'react'
   previewVersion: number
   isLoading: boolean
 }
 
 type Tab = 'preview' | 'code'
 
-/** Inline CSS/JS files into a single self-contained HTML blob */
+/** Inline CSS/JS into a single self-contained HTML for HTML projects */
 function bundleFiles(files: Record<string, string>): string {
   let html = files['index.html'] || ''
 
-  // inline <link rel="stylesheet" href="*.css">
-  html = html.replace(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+\.css)["'][^>]*\/?>/gi, (_m, href) => {
-    const key = href.replace(/^\.\//, '')
-    const css = files[key] || files['./' + key]
+  html = html.replace(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+\.css)["'][^>]*\/?>/gi, (_m: string, href: string) => {
+    const css = files[href.replace(/^\.\//, '')]
     return css ? `<style>\n${css}\n</style>` : _m
   })
-  html = html.replace(/<link[^>]+href=["']([^"']+\.css)["'][^>]+rel=["']stylesheet["'][^>]*\/?>/gi, (_m, href) => {
-    const key = href.replace(/^\.\//, '')
-    const css = files[key] || files['./' + key]
+  html = html.replace(/<link[^>]+href=["']([^"']+\.css)["'][^>]+rel=["']stylesheet["'][^>]*\/?>/gi, (_m: string, href: string) => {
+    const css = files[href.replace(/^\.\//, '')]
     return css ? `<style>\n${css}\n</style>` : _m
   })
-
-  // inline <script src="*.js">
-  html = html.replace(/<script([^>]+)src=["']([^"']+\.(js|mjs))["']([^>]*)><\/script>/gi, (_m, pre, src, _ext, post) => {
-    const key = src.replace(/^\.\//, '')
-    const js = files[key] || files['./' + key]
+  html = html.replace(/<script([^>]*)src=["']([^"']+\.(js|mjs))["']([^>]*)><\/script>/gi, (_m: string, pre: string, src: string, _ext: string, post: string) => {
+    const js = files[src.replace(/^\.\//, '')]
     return js ? `<script${pre}${post}>\n${js}\n</script>` : _m
   })
 
-  // Ensure Tailwind CDN if not already present
   if (!html.includes('cdn.tailwindcss.com')) {
     html = html.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
   }
-
   return html
 }
 
 function fileIcon(name: string) {
   if (name.endsWith('.css')) return <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: '#60a5fa' }} />
   if (name.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 shrink-0" style={{ color: '#fbbf24' }} />
-  if (name.endsWith('.js') || name.endsWith('.ts')) return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#f59e0b' }} />
+  if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.jsx') || name.endsWith('.tsx'))
+    return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#f59e0b' }} />
   return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
 }
 
-export default function PreviewPanel({ files, previewVersion, isLoading }: Props) {
+export default function PreviewPanel({ files, projectType, previewVersion, isLoading }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeKey, setIframeKey] = useState(0)
   const blobUrlRef = useRef<string>('')
+  const [showExport, setShowExport] = useState(false)
+  const [githubRepo, setGithubRepo] = useState<{ owner: string; repo: string } | null>(null)
 
   const fileNames = Object.keys(files).sort((a, b) => {
-    const order = ['index.html']
+    const order = ['index.html', 'package.json', 'vite.config.js']
     const ai = order.indexOf(a), bi = order.indexOf(b)
     if (ai >= 0 && bi < 0) return -1
     if (bi >= 0 && ai < 0) return 1
     const ext = (f: string) => f.split('.').pop() || ''
-    const extOrder = ['html', 'css', 'js', 'ts', 'json']
+    const extOrder = ['html', 'json', 'js', 'jsx', 'tsx', 'ts', 'css']
     return (extOrder.indexOf(ext(a)) - extOrder.indexOf(ext(b))) || a.localeCompare(b)
   })
 
   const hasFiles = fileNames.length > 0
 
+  // Blob URL for HTML projects
   const blobUrl = useMemo(() => {
-    if (!hasFiles || !files['index.html']) return ''
+    if (!hasFiles || !files['index.html'] || projectType === 'react') return ''
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
-    const bundled = bundleFiles(files)
-    const url = URL.createObjectURL(new Blob([bundled], { type: 'text/html' }))
+    const url = URL.createObjectURL(new Blob([bundleFiles(files)], { type: 'text/html' }))
     blobUrlRef.current = url
     return url
-  }, [files])
+  }, [files, projectType])
+
+  // StackBlitz URL after GitHub export
+  const stackblitzUrl = githubRepo
+    ? `https://stackblitz.com/github/${githubRepo.owner}/${githubRepo.repo}?embed=1&view=preview&hideNavigation=0&theme=dark`
+    : ''
 
   useEffect(() => {
     if (previewVersion > 0) setIframeKey(k => k + 1)
   }, [previewVersion])
 
+  // Reset github repo when new project is generated
   useEffect(() => {
-    if (hasFiles && !files[selectedFile]) setSelectedFile(fileNames[0])
+    if (hasFiles) {
+      setGithubRepo(null)
+      setSelectedFile(fileNames[0] || 'index.html')
+    }
   }, [files])
 
   useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current) }, [])
@@ -94,7 +100,19 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
   const refresh = () => setIframeKey(k => k + 1)
-  const openNew = () => { if (blobUrl) window.open(blobUrl, '_blank') }
+  const openNew = () => {
+    if (stackblitzUrl) window.open(stackblitzUrl.replace('?embed=1&', '?'), '_blank')
+    else if (blobUrl) window.open(blobUrl, '_blank')
+  }
+
+  const handleExportSuccess = (owner: string, repo: string) => {
+    setGithubRepo({ owner, repo })
+    setShowExport(false)
+    setIframeKey(k => k + 1)
+  }
+
+  // What to show in preview iframe
+  const previewSrc = stackblitzUrl ? stackblitzUrl : blobUrl
 
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
@@ -126,7 +144,22 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
           </div>
         )}
 
-        {blobUrl && tab === 'preview' && (
+        {/* GitHub export button */}
+        {hasFiles && (
+          <button onClick={() => setShowExport(true)}
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
+            style={githubRepo
+              ? { color: 'var(--ok)', background: 'var(--ok-bg)' }
+              : { color: 'var(--txt-3)' }}
+            onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
+            onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' } }}
+            title="GitHub에 내보내기">
+            <GitFork className="w-3.5 h-3.5" />
+            <span>{githubRepo ? `${githubRepo.owner}/${githubRepo.repo}` : 'GitHub'}</span>
+          </button>
+        )}
+
+        {previewSrc && tab === 'preview' && (
           <>
             <button onClick={refresh}
               className="flex items-center justify-center w-7 h-7 rounded-md transition-all"
@@ -161,16 +194,45 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
       <div className="flex-1 relative overflow-hidden">
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
-          {blobUrl ? (
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              src={blobUrl}
-              className="w-full h-full border-0"
-              allow="fullscreen"
-              title="Preview"
-            />
+          {previewSrc ? (
+            <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
+              className="w-full h-full border-0" allow="fullscreen" title="Preview" />
+          ) : hasFiles && projectType === 'react' ? (
+            /* React project — needs GitHub export */
+            <div className="flex-1 flex flex-col items-center justify-center gap-5">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
+                <GitFork className="w-7 h-7" style={{ color: 'var(--accent)' }} />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>React 프로젝트 생성됨</p>
+                <p className="text-xs max-w-64 leading-relaxed" style={{ color: 'var(--txt-3)' }}>
+                  React 앱은 빌드 단계가 필요합니다.<br />
+                  GitHub에 저장하면 StackBlitz가 즉시 실행합니다.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowExport(true)}
+                className="flex items-center gap-2 h-10 px-6 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--accent)', color: '#fff' }}>
+                <GitFork className="w-4 h-4" /> GitHub에 저장 후 미리보기
+              </button>
+              <div className="flex flex-wrap gap-2 justify-center max-w-72">
+                {fileNames.slice(0, 6).map(name => (
+                  <span key={name} className="text-xs px-2 py-0.5 rounded-md font-mono"
+                    style={{ background: 'var(--bg-panel)', color: 'var(--txt-3)', border: '1px solid var(--border-s)' }}>
+                    {name}
+                  </span>
+                ))}
+                {fileNames.length > 6 && (
+                  <span className="text-xs px-2 py-0.5 rounded-md" style={{ color: 'var(--txt-3)' }}>
+                    +{fileNames.length - 6}개
+                  </span>
+                )}
+              </div>
+            </div>
           ) : (
+            /* Empty state */
             <div className="flex-1 flex flex-col items-center justify-center gap-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                 style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)' }}>
@@ -264,6 +326,11 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
               <span style={{ color: '#fbbf24', opacity: 0.8 }}>
                 {tab === 'code' ? selectedFile : 'index.html'}
               </span>
+              {projectType === 'react' && (
+                <span className="px-1.5 py-px rounded text-xs" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: '10px' }}>
+                  React
+                </span>
+              )}
             </>
           )}
           {isLoading && (
@@ -277,6 +344,15 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
           {hasFiles && <span>{fileNames.length}개 파일 · {totalLines} lines</span>}
         </div>
       </div>
+
+      {/* Export Modal */}
+      {showExport && (
+        <ExportModal
+          files={files}
+          onClose={() => setShowExport(false)}
+          onSuccess={handleExportSuccess}
+        />
+      )}
     </div>
   )
 }
