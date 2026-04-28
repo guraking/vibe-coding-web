@@ -35,10 +35,11 @@ self.addEventListener('fetch', event => {
   const filename = decodeURIComponent(url.pathname.slice(PREVIEW_PREFIX.length)) || 'index.html'
 
   if (!(filename in files)) {
-    event.respondWith(new Response(`<h1>Not found: ${filename}</h1>`, {
-      status: 404,
-      headers: { 'Content-Type': 'text/html' },
-    }))
+    // Return blank page (200) so browser doesn't fall back to the SPA
+    event.respondWith(new Response(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;background:#0d0d14"></body></html>',
+      { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    ))
     return
   }
 

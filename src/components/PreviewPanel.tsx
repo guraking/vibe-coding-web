@@ -5,6 +5,7 @@ interface Props {
   files: Record<string, string>
   previewVersion: number
   isLoading: boolean
+  swReady: boolean
 }
 
 type Tab = 'preview' | 'code'
@@ -18,7 +19,7 @@ function fileIcon(name: string) {
   return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
 }
 
-export default function PreviewPanel({ files, previewVersion, isLoading }: Props) {
+export default function PreviewPanel({ files, previewVersion, isLoading, swReady }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
@@ -121,14 +122,21 @@ export default function PreviewPanel({ files, previewVersion, isLoading }: Props
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
           {hasFiles ? (
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              src={PREVIEW_URL}
-              className="w-full h-full border-0"
-              allow="fullscreen"
-              title="Preview"
-            />
+            swReady ? (
+              <iframe
+                key={iframeKey}
+                ref={iframeRef}
+                src={PREVIEW_URL}
+                className="w-full h-full border-0"
+                allow="fullscreen"
+                title="Preview"
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent)' }} />
+                <p className="text-xs" style={{ color: 'var(--txt-3)' }}>미리보기 준비 중...</p>
+              </div>
+            )
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
