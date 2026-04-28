@@ -9,7 +9,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
   const projectFilesRef = useRef<Record<string, string>>({})
-  const [projectType, setProjectType] = useState<'html' | 'react'>('html')
+  const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
   const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback

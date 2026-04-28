@@ -2,7 +2,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   files?: Record<string, string>
-  projectType?: 'html' | 'react'
+  projectType?: 'html' | 'react' | 'vue'
 }
 
 export const MODELS = [
@@ -85,6 +85,65 @@ React mode rules:
 - Split into meaningful components in src/components/
 - Fully interactive with React hooks (useState, useEffect, etc.)
 - Dark theme by default
+- When refining: keep design language consistent, improve only what was asked
+
+## Mode 3: Vue Project
+ONLY when user explicitly asks for Vue:
+
+<VIBE_FILE name="package.json">
+{
+  "name": "vibe-app",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build" },
+  "dependencies": { "vue": "^3.5.0" },
+  "devDependencies": { "@vitejs/plugin-vue": "^5.2.0", "vite": "^6.0.0" }
+}
+</VIBE_FILE>
+<VIBE_FILE name="vite.config.js">
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+export default defineConfig({ plugins: [vue()] })
+</VIBE_FILE>
+<VIBE_FILE name="index.html">
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vibe App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head><body><div id="app"></div><script type="module" src="/src/main.js"></script></body></html>
+</VIBE_FILE>
+<VIBE_FILE name="src/main.js">
+import { createApp } from 'vue'
+import './index.css'
+import App from './App.vue'
+createApp(App).mount('#app')
+</VIBE_FILE>
+<VIBE_FILE name="src/index.css">
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8f4; }
+</VIBE_FILE>
+<VIBE_FILE name="src/App.vue">
+<template>
+  <!-- root template -->
+</template>
+<script setup>
+// composition API here
+</script>
+<style scoped>
+/* scoped styles */
+</style>
+</VIBE_FILE>
+<!-- Additional components: src/components/Foo.vue -->
+<VIBE_TYPE>vue</VIBE_TYPE>
+<VIBE_EXPLANATION>[Korean description]</VIBE_EXPLANATION>
+
+Vue mode rules:
+- MUST include package.json, vite.config.js, index.html, src/main.js, src/index.css, src/App.vue
+- Use Tailwind via CDN in index.html (NO npm install needed)
+- Use Vue 3 Composition API with <script setup>
+- Split into .vue SFC components in src/components/
+- Use ref(), reactive(), computed(), onMounted() as needed
+- Dark theme by default
 - When refining: keep design language consistent, improve only what was asked`
 
 export async function* streamCode(
@@ -158,11 +217,11 @@ export async function* streamCode(
   }
 }
 
-export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' } {
-  const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([\/\s\S]*?)<\/VIBE_FILE>/g)]
+export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' | 'vue' } {
+  const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([/\s\S]*?)<\/VIBE_FILE>/g)]
   const explMatch = raw.match(/<VIBE_EXPLANATION>([\s\S]*?)<\/VIBE_EXPLANATION>/)
-  const typeMatch = raw.match(/<VIBE_TYPE>(html|react)<\/VIBE_TYPE>/)
-  const projectType: 'html' | 'react' = typeMatch?.[1] === 'react' ? 'react' : 'html'
+  const typeMatch = raw.match(/<VIBE_TYPE>(html|react|vue)<\/VIBE_TYPE>/)
+  const projectType: 'html' | 'react' | 'vue' = (typeMatch?.[1] as 'html' | 'react' | 'vue') ?? 'html'
 
   const files: Record<string, string> = {}
   for (const [, name, content] of fileMatches) {
@@ -175,12 +234,14 @@ export function parseVibe(raw: string): { files: Record<string, string>; explana
     if (htmlMatch) files['index.html'] = htmlMatch[1].trim()
   }
 
-  // Auto-detect React if .jsx/.tsx files present
-  const isReact = projectType === 'react' || Object.keys(files).some(f => f.endsWith('.jsx') || f.endsWith('.tsx'))
+  // Auto-detect by file extensions
+  const fileNames = Object.keys(files)
+  const isVue = projectType === 'vue' || fileNames.some(f => f.endsWith('.vue'))
+  const isReact = !isVue && (projectType === 'react' || fileNames.some(f => f.endsWith('.jsx') || f.endsWith('.tsx')))
 
   return {
     files,
     explanation: explMatch?.[1]?.trim() ?? '',
-    projectType: isReact ? 'react' : 'html',
+    projectType: isVue ? 'vue' : isReact ? 'react' : 'html',
   }
 }

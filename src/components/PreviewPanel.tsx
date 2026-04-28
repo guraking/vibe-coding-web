@@ -4,7 +4,7 @@ import ExportModal from './ExportModal'
 
 interface Props {
   files: Record<string, string>
-  projectType: 'html' | 'react'
+  projectType: 'html' | 'react' | 'vue'
   previewVersion: number
   isLoading: boolean
 }
@@ -37,6 +37,7 @@ function bundleFiles(files: Record<string, string>): string {
 function fileIcon(name: string) {
   if (name.endsWith('.css')) return <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: '#60a5fa' }} />
   if (name.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 shrink-0" style={{ color: '#fbbf24' }} />
+  if (name.endsWith('.vue')) return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#42d392' }} />
   if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.jsx') || name.endsWith('.tsx'))
     return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#f59e0b' }} />
   return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
@@ -66,7 +67,7 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
 
   // Blob URL for HTML projects
   const blobUrl = useMemo(() => {
-    if (!hasFiles || !files['index.html'] || projectType === 'react') return ''
+    if (!hasFiles || !files['index.html'] || projectType === 'react' || projectType === 'vue') return ''
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     const url = URL.createObjectURL(new Blob([bundleFiles(files)], { type: 'text/html' }))
     blobUrlRef.current = url
@@ -197,17 +198,19 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
           {previewSrc ? (
             <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
               className="w-full h-full border-0" allow="fullscreen" title="Preview" />
-          ) : hasFiles && projectType === 'react' ? (
-            /* React project — needs GitHub export */
+          ) : hasFiles && (projectType === 'react' || projectType === 'vue') ? (
+            /* React / Vue project — needs GitHub export */
             <div className="flex-1 flex flex-col items-center justify-center gap-5">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
                 style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
                 <GitFork className="w-7 h-7" style={{ color: 'var(--accent)' }} />
               </div>
               <div className="text-center space-y-2">
-                <p className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>React 프로젝트 생성됨</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>
+                  {projectType === 'vue' ? 'Vue' : 'React'} 프로젝트 생성됨
+                </p>
                 <p className="text-xs max-w-64 leading-relaxed" style={{ color: 'var(--txt-3)' }}>
-                  React 앱은 빌드 단계가 필요합니다.<br />
+                  {projectType === 'vue' ? 'Vue' : 'React'} 앱은 빌드 단계가 필요합니다.<br />
                   GitHub에 저장하면 StackBlitz가 즉시 실행합니다.
                 </p>
               </div>
@@ -326,9 +329,9 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
               <span style={{ color: '#fbbf24', opacity: 0.8 }}>
                 {tab === 'code' ? selectedFile : 'index.html'}
               </span>
-              {projectType === 'react' && (
+              {(projectType === 'react' || projectType === 'vue') && (
                 <span className="px-1.5 py-px rounded text-xs" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: '10px' }}>
-                  React
+                  {projectType === 'vue' ? 'Vue' : 'React'}
                 </span>
               )}
             </>
