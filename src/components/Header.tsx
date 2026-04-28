@@ -35,9 +35,6 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               <rect x="2" y="10" width="6" height="6" rx="1" fill="white" opacity="0.7"/>
               <rect x="10" y="10" width="6" height="6" rx="1" fill="#FE315D"/>
             </svg>
-            <span style={{ color: '#bababa', fontWeight: 600, fontSize: 13, letterSpacing: 0.2 }}>
-              Vibe Coding
-            </span>
           </div>
 
           {/* Breadcrumb */}

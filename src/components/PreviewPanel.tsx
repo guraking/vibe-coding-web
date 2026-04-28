@@ -185,7 +185,7 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
         style={{ height: 22, background: "#3c3f41", borderTop: "1px solid #323232", color: "#808080" }}
       >
         <div className="flex items-center gap-4">
-          <span style={{ color: "#4e9aea" }}>⚡ Vibe Coding</span>
+          <span style={{ color: "#4e9aea" }}>⚡</span>
           {isLoading && <span style={{ color: "#ffc66d" }}>● AI 생성 중...</span>}
         </div>
         <div className="flex items-center gap-4">
