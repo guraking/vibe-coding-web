@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, AlertCircle, Loader2, Terminal } from 'lucide-react'
-import type { Message } from '../services/ai'
+import type { Message, TokenUsage } from '../services/ai'
 
 interface Props {
   messages: Message[]
@@ -8,6 +8,7 @@ interface Props {
   isLoading: boolean
   hasApiKey: boolean
   width?: number
+  tokenUsage?: TokenUsage | null
 }
 
 const SUGGESTIONS = [
@@ -32,7 +33,7 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width }: Props) {
+export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -240,6 +241,79 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
           </div>
         </div>
       </div>
+
+      {/* Token Usage Bar */}
+      {tokenUsage && (
+        <div className="flex-shrink-0 px-3 pb-3">
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-s)',
+            padding: '8px 10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}>
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                # token usage
+              </span>
+              <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                last request: {tokenUsage.totalTokens.toLocaleString()} tokens
+              </span>
+            </div>
+
+            {/* prompt / completion breakdown */}
+            <div className="flex items-center gap-3">
+              <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                in: <span style={{ color: 'var(--txt-2)' }}>{tokenUsage.promptTokens.toLocaleString()}</span>
+              </span>
+              <span style={{ color: 'var(--border)' }}>|</span>
+              <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                out: <span style={{ color: 'var(--txt-2)' }}>{tokenUsage.completionTokens.toLocaleString()}</span>
+              </span>
+              <span style={{ color: 'var(--border)' }}>|</span>
+              <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                total: <span style={{ color: 'var(--accent)' }}>{tokenUsage.totalTokens.toLocaleString()}</span>
+              </span>
+            </div>
+
+            {/* Rate limit bar (only when info available) */}
+            {tokenUsage.limitPerMin > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                    rate limit (tokens/min)
+                  </span>
+                  <span style={{ fontFamily: 'var(--mono-font)', fontSize: 9, color: tokenUsage.remainingPerMin < tokenUsage.limitPerMin * 0.1 ? 'var(--err)' : 'var(--ok)' }}>
+                    {tokenUsage.remainingPerMin.toLocaleString()} / {tokenUsage.limitPerMin.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.max(0, Math.min(100, (tokenUsage.remainingPerMin / tokenUsage.limitPerMin) * 100))}%`,
+                    background: tokenUsage.remainingPerMin < tokenUsage.limitPerMin * 0.1
+                      ? 'var(--err)'
+                      : tokenUsage.remainingPerMin < tokenUsage.limitPerMin * 0.3
+                        ? '#f59e0b'
+                        : 'var(--ok)',
+                    transition: 'width 0.5s ease',
+                    borderRadius: 2,
+                  }} />
+                </div>
+                {tokenUsage.resetInSeconds > 0 && (
+                  <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                    resets in {tokenUsage.resetInSeconds >= 60
+                      ? `${Math.floor(tokenUsage.resetInSeconds / 60)}m ${tokenUsage.resetInSeconds % 60}s`
+                      : `${tokenUsage.resetInSeconds}s`}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

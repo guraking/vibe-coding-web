@@ -3,7 +3,7 @@ import Header from './components/Header'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe } from './services/ai'
-import type { Message } from './services/ai'
+import type { Message, TokenUsage } from './services/ai'
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -12,6 +12,7 @@ export default function App() {
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
   const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
   const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
@@ -66,7 +67,7 @@ export default function App() {
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
     try {
-      for await (const chunk of streamCode(apiKey, model, history, Object.keys(projectFiles).length ? projectFiles : undefined)) {
+      for await (const chunk of streamCode(apiKey, model, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
         bufferRef.current += chunk
         const { explanation } = parseVibe(bufferRef.current)
         setMessages((prev) => {
@@ -164,7 +165,7 @@ export default function App() {
         {/* Chat panel (collapsible) */}
         {activeToolWindow === 'chat' && (
           <>
-            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} />
+            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} tokenUsage={tokenUsage} />
             {/* Drag handle */}
             <div
               onMouseDown={onMouseDown}

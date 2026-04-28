@@ -5,6 +5,18 @@ export interface Message {
   projectType?: 'html' | 'react' | 'vue'
 }
 
+export interface TokenUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  /** 분당 한도 (-1 = 정보 없음) */
+  limitPerMin: number
+  /** 분당 남은 토큰 (-1 = 정보 없음) */
+  remainingPerMin: number
+  /** 남은 토큰 리셋까지 초 (-1 = 정보 없음) */
+  resetInSeconds: number
+}
+
 export const MODELS = [
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (무료)' },
   { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (빠름)' },
@@ -151,6 +163,7 @@ export async function* streamCode(
   model: string,
   messages: Message[],
   currentFiles?: Record<string, string>,
+  onUsage?: (usage: TokenUsage) => void,
 ): AsyncGenerator<string, void, unknown> {
   const currentContext = currentFiles && Object.keys(currentFiles).length > 0
     ? `\n\nThe user is refining their existing project. Current files:\n` +
@@ -187,6 +200,19 @@ export async function* streamCode(
     )
   }
 
+  // Rate-limit headers (available before reading body)
+  const limitPerMin = parseInt(response.headers.get('x-ratelimit-limit-tokens') ?? '-1', 10)
+  const remainingPerMin = parseInt(response.headers.get('x-ratelimit-remaining-tokens') ?? '-1', 10)
+  const resetRaw = response.headers.get('x-ratelimit-reset-tokens') ?? ''
+  // reset value is like "1m30s" or "45s" or "0s"
+  const resetInSeconds = (() => {
+    const m = resetRaw.match(/(\d+)m(\d+)?s?/)
+    if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2] ?? '0', 10)
+    const s = resetRaw.match(/(\d+)s/)
+    if (s) return parseInt(s[1], 10)
+    return -1
+  })()
+
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
 
@@ -204,9 +230,22 @@ export async function* streamCode(
         try {
           const parsed = JSON.parse(data) as {
             choices?: { delta?: { content?: string } }[]
+            x_groq?: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }
           }
           const content = parsed.choices?.[0]?.delta?.content
           if (typeof content === 'string') yield content
+          // Final chunk from Groq contains x_groq.usage
+          if (parsed.x_groq?.usage && onUsage) {
+            const u = parsed.x_groq.usage
+            onUsage({
+              promptTokens: u.prompt_tokens ?? 0,
+              completionTokens: u.completion_tokens ?? 0,
+              totalTokens: u.total_tokens ?? 0,
+              limitPerMin,
+              remainingPerMin,
+              resetInSeconds,
+            })
+          }
         } catch {
           // skip malformed SSE chunks
         }
