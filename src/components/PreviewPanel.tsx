@@ -380,7 +380,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                   value={deployUrl}
                   onChange={e => { setDeployUrl(e.target.value); setIframeKey(k => k + 1) }}
                   className="appearance-none bg-transparent focus:outline-none"
-                  style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, height: 28, maxWidth: 250 }}
+                  style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, height: 28, maxWidth: '100%' }}
                   title="Deployment URL history"
                 >
                   {repoDeployHistory.map((item) => (
