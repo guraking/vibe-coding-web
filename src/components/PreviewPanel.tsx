@@ -7,7 +7,6 @@ import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
 interface Props {
   files: Record<string, string>
   projectType: 'html' | 'react' | 'vue'
-  previewVersion: number
   isLoading: boolean
   onImport: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue') => void
 }
@@ -48,7 +47,7 @@ function fileIcon(name: string) {
   return <FileCode2 style={{ width: 12, height: 12, color: 'var(--ok)' }} className="shrink-0" />
 }
 
-export default function PreviewPanel({ files, projectType, previewVersion, isLoading, onImport }: Props) {
+export default function PreviewPanel({ files, projectType, isLoading, onImport }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
@@ -60,7 +59,6 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   const [showImport, setShowImport] = useState(false)
   const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(null)
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
-  const [deployLoading, setDeployLoading] = useState(false)
   const [deployStatus, setDeployStatus] = useState('')
   const [deployError, setDeployError] = useState('')
   const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token'>('idle')
@@ -132,7 +130,6 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   const startDeploy = async (owner: string, repo: string, branch: string, token: string) => {
     localStorage.setItem('vibe_gh_token', token)
     setDeployToken(token)
-    setDeployLoading(true)
     setDeployStep('deploying')
     setDeployError('')
     setDeployStatus('')
@@ -146,8 +143,6 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
       setDeployError(err instanceof Error ? err.message : '배포 실패')
       setDeployStatus('')
       setDeployStep('idle')
-    } finally {
-      setDeployLoading(false)
     }
   }
 

@@ -17,6 +17,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
 
   const open = () => { setDraft(apiKey); setShowModal(true) }
   const save = () => { onApiKeyChange(draft.trim()); setShowModal(false) }
+  const reloadPage = () => window.location.reload()
 
   const selectedModel = MODELS.find(m => m.id === model)
 
@@ -27,7 +28,13 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
         {isMobile ? (
           /* Mobile: single compact row */
           <div className="flex items-center justify-between px-3" style={{ height: 48 }}>
-            <h1 className="pixel-logo" style={{ fontSize: '12px', lineHeight: 1.4 }}>VIBE</h1>
+            <button
+              onClick={reloadPage}
+              className="pixel-logo"
+              style={{ fontSize: '12px', lineHeight: 1.4, background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer' }}
+            >
+              VIBE
+            </button>
             <div className="flex items-center gap-2">
               <select
                 value={model}
@@ -58,12 +65,13 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           <>
             <div className="flex flex-col items-center justify-center py-4 gap-2">
           {/* Pixel logo */}
-          <h1
+          <button
+            onClick={reloadPage}
             className="pixel-logo"
-            style={{ fontSize: '20px', lineHeight: 1.4 }}
+            style={{ fontSize: '20px', lineHeight: 1.4, background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer' }}
           >
             VIBE-CODING
-          </h1>
+          </button>
           {/* Subtitle */}
           <p style={{ color: 'var(--txt-3)', fontSize: '10px', fontFamily: 'var(--mono-font)', letterSpacing: '0.06em' }}>
             Build apps 10x faster with AI coding agents...

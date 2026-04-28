@@ -5,23 +5,11 @@ import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe, RateLimitError } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)')
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-  return isMobile
-}
-
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
   const projectFilesRef = useRef<Record<string, string>>({})
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
-  const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
   // timestamp(ms) until which requests are blocked due to rate limit
@@ -103,7 +91,6 @@ export default function App() {
         projectFilesRef.current = files
         setProjectFiles(files)
         setProjectType(pType)
-        setPreviewVersion(v => v + 1)
       }
       setMessages((prev) => {
         const updated = [...prev]
@@ -140,26 +127,12 @@ export default function App() {
   }
 
   const [activeToolWindow, setActiveToolWindow] = useState<'chat' | null>('chat')
-  const isMobile = useIsMobile()
-  const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat')
 
   const commonImport = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue') => {
     projectFilesRef.current = importedFiles
     setProjectFiles(importedFiles)
     setProjectType(importedType)
-    setPreviewVersion(v => v + 1)
-    if (isMobile) setMobileTab('preview')
   }
-
-  // auto-switch to preview on mobile when files are generated
-  const prevFilesLen = useRef(0)
-  useEffect(() => {
-    const len = Object.keys(projectFiles).length
-    if (isMobile && len > 0 && len !== prevFilesLen.current) {
-      setMobileTab('preview')
-    }
-    prevFilesLen.current = len
-  }, [projectFiles, isMobile])
 
   const toolWindowIcons = [
     {
@@ -240,7 +213,6 @@ export default function App() {
         <PreviewPanel
           files={projectFiles}
           projectType={projectType}
-          previewVersion={previewVersion}
           isLoading={isLoading}
           onImport={commonImport}
         />
