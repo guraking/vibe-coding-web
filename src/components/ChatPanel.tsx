@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Loader2, Terminal } from 'lucide-react'
+import { Send, RotateCcw, AlertCircle, Loader2, Terminal, Clock } from 'lucide-react'
 import type { Message, TokenUsage } from '../services/ai'
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
   hasApiKey: boolean
   width?: number
   tokenUsage?: TokenUsage | null
+  retryAt?: number | null
 }
 
 const SUGGESTIONS = [
@@ -33,10 +34,22 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage }: Props) {
+export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, retryAt }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const [countdown, setCountdown] = useState(0)
+
+  // countdown ticker
+  useEffect(() => {
+    if (!retryAt) { setCountdown(0); return }
+    const tick = () => setCountdown(Math.max(0, Math.ceil((retryAt - Date.now()) / 1000)))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [retryAt])
+
+  const isRateLimited = !!retryAt && Date.now() < retryAt
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -57,7 +70,44 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
     e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px'
   }
 
-  const canSend = !!input.trim() && !isLoading && hasApiKey
+  const canSend = !!input.trim() && !isLoading && hasApiKey && !isRateLimited
+
+  const fmtCountdown = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`
+
+  /** rate limit 메시지 렌더러 */
+  const RateLimitMsg = ({ raw }: { raw: string }) => {
+    const parts = raw.replace('__RATELIMIT__', '').split('__')
+    const [, limit, used] = [parseInt(parts[0] ?? '0'), parseInt(parts[1] ?? '0'), parseInt(parts[2] ?? '0')]
+    const pct = limit > 0 ? Math.round((used / limit) * 100) : 100
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2" style={{ color: 'var(--err)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
+          <Clock style={{ width: 12, height: 12, flexShrink: 0 }} />
+          <span>일일 토큰 한도 도달</span>
+        </div>
+        {limit > 0 && (
+          <div className="flex flex-col gap-1">
+            <div className="flex justify-between" style={{ fontFamily: 'var(--mono-font)', fontSize: 9, color: 'var(--txt-3)' }}>
+              <span>사용: {used.toLocaleString()} / {limit.toLocaleString()} tokens</span>
+              <span>{pct}%</span>
+            </div>
+            <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--err)', borderRadius: 2 }} />
+            </div>
+          </div>
+        )}
+        <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+          재시도 가능까지: <span style={{ color: isRateLimited ? 'var(--err)' : 'var(--ok)' }}>
+            {isRateLimited ? fmtCountdown(countdown) : '지금 재시도 가능!'}
+          </span>
+        </p>
+        <a href="https://console.groq.com/settings/billing" target="_blank" rel="noreferrer"
+          style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+          → Dev Tier 업그레이드 (한도 증가)
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col flex-shrink-0"
@@ -164,9 +214,11 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
                         {new Date().toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    {msg.content
-                      ? <p style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.65 }}>{msg.content}</p>
-                      : <Dots />}
+                    {msg.content.startsWith('__RATELIMIT__')
+                      ? <RateLimitMsg raw={msg.content} />
+                      : msg.content
+                        ? <p style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.65 }}>{msg.content}</p>
+                        : <Dots />}
                   </div>
                 </div>
               )
@@ -193,6 +245,13 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             API key not configured — click Settings to add
           </div>
         )}
+        {isRateLimited && (
+          <div className="flex items-center gap-2 px-3 py-2 mb-2"
+            style={{ background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+            <Clock style={{ width: 12, height: 12, flexShrink: 0 }} />
+            <span>일일 한도 소진 — <span style={{ fontWeight: 600 }}>{fmtCountdown(countdown)}</span> 후 재시도 가능</span>
+          </div>
+        )}
         <div className="overflow-hidden transition-all"
           style={{
             background: 'var(--bg-card)',
@@ -205,7 +264,7 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             <textarea ref={taRef} value={input}
               onChange={onInput} onKeyDown={onKey}
               placeholder={hasApiKey ? 'describe what you want to build...' : 'configure API key first'}
-              disabled={!hasApiKey || isLoading} rows={2}
+              disabled={!hasApiKey || isLoading || isRateLimited} rows={2}
               className="w-full bg-transparent resize-none focus:outline-none disabled:opacity-40"
               style={{
                 color: 'var(--txt)',

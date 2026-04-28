@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Header from './components/Header'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
-import { streamCode, parseVibe } from './services/ai'
+import { streamCode, parseVibe, RateLimitError } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
 
 export default function App() {
@@ -13,6 +13,17 @@ export default function App() {
   const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
+  // timestamp(ms) until which requests are blocked due to rate limit
+  const [retryAt, setRetryAt] = useState<number | null>(null)
+
+  // clear retryAt once time passes
+  useEffect(() => {
+    if (!retryAt) return
+    const remaining = retryAt - Date.now()
+    if (remaining <= 0) { setRetryAt(null); return }
+    const t = setTimeout(() => setRetryAt(null), remaining)
+    return () => clearTimeout(t)
+  }, [retryAt])
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
   const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
@@ -58,7 +69,7 @@ export default function App() {
   }
 
   const handleSend = async (prompt: string) => {
-    if (!apiKey || isLoading) return
+    if (!apiKey || isLoading || retryAt) return
     const userMsg: Message = { role: 'user', content: prompt }
     const history = [...messages, userMsg]
     setMessages(history)
@@ -93,12 +104,25 @@ export default function App() {
         return updated
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
-      setMessages((prev) => {
-        const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, files: {} }
-        return updated
-      })
+      if (err instanceof RateLimitError) {
+        setRetryAt(Date.now() + err.retryAfterSeconds * 1000)
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: `__RATELIMIT__${err.retryAfterSeconds}__${err.limitTokens}__${err.usedTokens}`,
+            files: {},
+          }
+          return updated
+        })
+      } else {
+        const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, files: {} }
+          return updated
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -165,7 +189,7 @@ export default function App() {
         {/* Chat panel (collapsible) */}
         {activeToolWindow === 'chat' && (
           <>
-            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} tokenUsage={tokenUsage} />
+            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} tokenUsage={tokenUsage} retryAt={retryAt} />
             {/* Drag handle */}
             <div
               onMouseDown={onMouseDown}

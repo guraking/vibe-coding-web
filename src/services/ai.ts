@@ -17,6 +17,30 @@ export interface TokenUsage {
   resetInSeconds: number
 }
 
+/** "33m24.4s" 또는 "45.2s" 형태의 Groq retry 문자열을 초로 변환 */
+function parseRetrySeconds(msg: string): number {
+  const m = msg.match(/try again in (\d+)m([\d.]+)s/)
+  if (m) return Math.ceil(parseInt(m[1], 10) * 60 + parseFloat(m[2]))
+  const s = msg.match(/try again in ([\d.]+)s/)
+  if (s) return Math.ceil(parseFloat(s[1]))
+  return 60
+}
+
+export class RateLimitError extends Error {
+  retryAfterSeconds: number
+  limitTokens: number
+  usedTokens: number
+  constructor(message: string) {
+    super(message)
+    this.name = 'RateLimitError'
+    this.retryAfterSeconds = parseRetrySeconds(message)
+    const limitMatch = message.match(/Limit (\d+)/)
+    const usedMatch = message.match(/Used (\d+)/)
+    this.limitTokens = limitMatch ? parseInt(limitMatch[1], 10) : 0
+    this.usedTokens = usedMatch ? parseInt(usedMatch[1], 10) : 0
+  }
+}
+
 export const MODELS = [
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (무료)' },
   { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (빠름)' },
@@ -194,10 +218,9 @@ export async function* streamCode(
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
-    throw new Error(
-      (err as { error?: { message?: string } })?.error?.message ??
-        `API 오류 (HTTP ${response.status})`,
-    )
+    const msg = (err as { error?: { message?: string } })?.error?.message ?? `API 오류 (HTTP ${response.status})`
+    if (response.status === 429) throw new RateLimitError(msg)
+    throw new Error(msg)
   }
 
   // Rate-limit headers (available before reading body)
