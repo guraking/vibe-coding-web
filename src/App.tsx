@@ -5,13 +5,6 @@ import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe } from './services/ai'
 import type { Message } from './services/ai'
 
-const activityIcons = [
-  { icon: '💬', title: 'Chat', active: true },
-  { icon: '🔍', title: '검색', active: false },
-  { icon: '⎇', title: 'Git', active: false },
-  { icon: '🧩', title: '확장', active: false },
-]
-
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [previewHtml, setPreviewHtml] = useState('')
@@ -115,20 +108,6 @@ export default function App() {
     >
       <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} isEnvKey={isEnvKey} />
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col items-center py-1 flex-shrink-0" style={{ width: 48, background: '#333333', borderRight: '1px solid #252526' }}>
-          {activityIcons.map((item) => (
-            <button
-              key={item.title}
-              title={item.title}
-              className="flex items-center justify-center w-12 h-12 text-xl transition-colors"
-              style={{ color: item.active ? '#cccccc' : '#858585', borderLeft: item.active ? '2px solid #cccccc' : '2px solid transparent' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#cccccc')}
-              onMouseLeave={e => (e.currentTarget.style.color = item.active ? '#cccccc' : '#858585')}
-            >
-              {item.icon}
-            </button>
-          ))}
-        </div>
         <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} />
         {/* 드래그 핸들 */}
         <div
