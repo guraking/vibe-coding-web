@@ -121,7 +121,7 @@ export default defineConfig({ plugins: [react()] })
 <html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vibe App</title>
 <script src="https://cdn.tailwindcss.com"></script>
-</head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+</head><body><div id="root"></div><script type="module" src="./src/main.jsx"></script></body></html>
 </VIBE_FILE>
 <VIBE_FILE name="src/main.jsx">
 import { StrictMode } from 'react'
@@ -144,6 +144,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 React mode rules:
 - MUST include package.json, vite.config.js, index.html, src/main.jsx, src/index.css, src/App.jsx
 - Use Tailwind via CDN in index.html (NO npm install needed for Tailwind)
+- In index.html, entry script path MUST be relative ('./src/main.jsx'), never absolute ('/src/main.jsx')
 - Split into meaningful components in src/components/
 - Fully interactive with React hooks (useState, useEffect, etc.)
 - Dark theme by default
@@ -172,7 +173,7 @@ export default defineConfig({ plugins: [vue()] })
 <html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vibe App</title>
 <script src="https://cdn.tailwindcss.com"></script>
-</head><body><div id="app"></div><script type="module" src="/src/main.js"></script></body></html>
+</head><body><div id="app"></div><script type="module" src="./src/main.js"></script></body></html>
 </VIBE_FILE>
 <VIBE_FILE name="src/main.js">
 import { createApp } from 'vue'
@@ -202,6 +203,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 Vue mode rules:
 - MUST include package.json, vite.config.js, index.html, src/main.js, src/index.css, src/App.vue
 - Use Tailwind via CDN in index.html (NO npm install needed)
+- In index.html, entry script path MUST be relative ('./src/main.js'), never absolute ('/src/main.js')
 - Use Vue 3 Composition API with <script setup>
 - Split into .vue SFC components in src/components/
 - Use ref(), reactive(), computed(), onMounted() as needed

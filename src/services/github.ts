@@ -189,7 +189,8 @@ function ensureProjectToolchain(files: Record<string, string>): Record<string, s
   return next
 }
 
-function normalizeFilesForBuild(files: Record<string, string>): Record<string, string> {
+function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = false): Record<string, string> {
+  if (keepRawOutput) return { ...files }
   const next: Record<string, string> = ensureMissingImportedModules(ensureProjectToolchain(files))
   const mainCandidates = ['src/main.tsx', 'src/main.jsx', 'src/main.ts', 'src/main.js']
 
@@ -237,7 +238,7 @@ export async function createRepoWithFiles(
 ): Promise<{ owner: string; repo: string; url: string }> {
   const headers = ghHeaders(token)
   const { login: owner } = await getGitHubUser(token)
-  const normalizedFiles = normalizeFilesForBuild(files)
+  const normalizedFiles = normalizeFilesForBuild(files, true)
 
   // 1. Create empty repo (no auto_init — avoids timing/409 issues with git data API)
   const createRes = await fetch(`${GH_API}/user/repos`, {
