@@ -126,7 +126,7 @@ export default function App() {
 
   return (
     <div
-      className="dark flex flex-col h-screen overflow-hidden bg-zinc-950 text-zinc-200"
+      className="flex flex-col h-screen overflow-hidden"
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
@@ -136,7 +136,7 @@ export default function App() {
         {/* Left narrow tool window bar (IntelliJ style) */}
         <div
           className="flex flex-col items-center py-1 flex-shrink-0 gap-0.5"
-          style={{ width: 36, background: '#2b2d30', borderRight: '1px solid #282828' }}
+          style={{ width: 36, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}
         >
           {toolWindowIcons.map((item, i) => (
             <button
@@ -145,10 +145,10 @@ export default function App() {
               onClick={() => item.id !== undefined && setActiveToolWindow(activeToolWindow === item.id ? null : item.id)}
               className="w-7 h-7 flex items-center justify-center rounded transition-colors"
               style={{
-                color: activeToolWindow === item.id ? '#4e9aea' : '#606366',
-                background: activeToolWindow === item.id ? 'rgba(78,154,234,0.15)' : 'transparent',
+                color: activeToolWindow === item.id ? 'var(--accent)' : 'var(--txt-3)',
+                background: activeToolWindow === item.id ? 'var(--accent-bg)' : 'transparent',
               }}
-              onMouseEnter={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = '#393b40' }}
+              onMouseEnter={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = 'var(--bg-hover)' }}
               onMouseLeave={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = 'transparent' }}
             >
               {item.icon}
@@ -170,7 +170,7 @@ export default function App() {
                 cursor: 'col-resize',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#4e9aea')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
               onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
             />
           </>
