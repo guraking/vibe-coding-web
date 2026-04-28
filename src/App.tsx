@@ -101,7 +101,7 @@ export default function App() {
   return (
     <div
       className="flex flex-col h-screen overflow-hidden"
-      style={{ background: '#1e1e1e', color: '#cccccc' }}
+      style={{ background: '#2b2b2b', color: '#a9b7c6' }}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
@@ -115,11 +115,11 @@ export default function App() {
           style={{
             width: 4,
             flexShrink: 0,
-            background: isDragging.current ? '#007acc' : 'transparent',
+            background: isDragging.current ? '#4e9aea' : 'transparent',
             cursor: 'col-resize',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#007acc')}
+          onMouseEnter={e => (e.currentTarget.style.background = '#4e9aea')}
           onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
         />
         <PreviewPanel html={previewHtml} code={currentCode} isLoading={isLoading} />
