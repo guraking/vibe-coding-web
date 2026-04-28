@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History } from 'lucide-react'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
@@ -12,8 +12,35 @@ interface Props {
 }
 
 type GithubRepo = { owner: string; repo: string; branch: string }
+type DeploymentHistoryItem = { owner: string; repo: string; branch: string; url: string; deployedAt: number }
 
 type Tab = 'preview' | 'code'
+
+const DEPLOY_HISTORY_KEY = 'vibe_deploy_history'
+
+function loadDeployHistory(): DeploymentHistoryItem[] {
+  try {
+    const raw = localStorage.getItem(DEPLOY_HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as DeploymentHistoryItem[]
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item) => !!item && !!item.url && !!item.owner && !!item.repo)
+      .sort((a, b) => b.deployedAt - a.deployedAt)
+      .slice(0, 30)
+  } catch {
+    return []
+  }
+}
+
+function saveDeployHistory(items: DeploymentHistoryItem[]): void {
+  localStorage.setItem(DEPLOY_HISTORY_KEY, JSON.stringify(items.slice(0, 30)))
+}
+
+function upsertDeployHistory(items: DeploymentHistoryItem[], next: DeploymentHistoryItem): DeploymentHistoryItem[] {
+  const filtered = items.filter((i) => !(i.owner === next.owner && i.repo === next.repo && i.url === next.url))
+  return [next, ...filtered].sort((a, b) => b.deployedAt - a.deployedAt).slice(0, 30)
+}
 
 /** Inline CSS/JS into a single self-contained HTML for HTML projects */
 function bundleFiles(files: Record<string, string>): string {
@@ -63,6 +90,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const [deployError, setDeployError] = useState('')
   const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token'>('idle')
   const [deployToken, setDeployToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
+  const [deployUrlCopied, setDeployUrlCopied] = useState(false)
+  const [deployHistory, setDeployHistory] = useState<DeploymentHistoryItem[]>(() => loadDeployHistory())
 
   const fileNames = Object.keys(files).sort((a, b) => {
     const order = ['index.html', 'package.json', 'vite.config.js']
@@ -106,10 +135,41 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
 
   const selectedContent = files[selectedFile] || ''
   const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
+  const repoDeployHistory = useMemo(() => {
+    if (!githubRepo) return []
+    return deployHistory.filter((h) => h.owner === githubRepo.owner && h.repo === githubRepo.repo)
+  }, [deployHistory, githubRepo])
+
+  const persistDeployment = (owner: string, repo: string, branch: string, url: string) => {
+    const next = upsertDeployHistory(deployHistory, {
+      owner,
+      repo,
+      branch,
+      url,
+      deployedAt: Date.now(),
+    })
+    setDeployHistory(next)
+    saveDeployHistory(next)
+  }
+
+  const formatHistoryTime = (ts: number) => {
+    const d = new Date(ts)
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${mm}/${dd} ${hh}:${mi}`
+  }
 
   const copyFile = async () => {
     await navigator.clipboard.writeText(selectedContent)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+  const copyDeployUrl = async () => {
+    if (!deployUrl) return
+    await navigator.clipboard.writeText(deployUrl)
+    setDeployUrlCopied(true)
+    setTimeout(() => setDeployUrlCopied(false), 2000)
   }
   const refresh = () => setIframeKey(k => k + 1)
   const openNew = () => {
@@ -118,13 +178,19 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     else if (githubRepo) window.open(`https://github.com/${githubRepo.owner}/${githubRepo.repo}/deployments`, '_blank')
   }
 
-  const handleExportSuccess = (owner: string, repo: string) => {
+  const handleExportSuccess = async (owner: string, repo: string, token: string) => {
     setGithubRepo({ owner, repo, branch: 'main' })
     setDeployUrl(null)
     setDeployError('')
     setDeployStep('idle')
     setShowExport(false)
+    setTab('preview')
     setIframeKey(k => k + 1)
+
+    // React/Vue는 push 완료 직후 자동 배포 후 preview에 배포 URL 표시
+    if (projectType === 'react' || projectType === 'vue') {
+      await startDeploy(owner, repo, 'main', token)
+    }
   }
 
   const startDeploy = async (owner: string, repo: string, branch: string, token: string) => {
@@ -136,6 +202,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     try {
       const url = await deployToGitHubPages(token, owner, repo, branch, setDeployStatus)
       setDeployUrl(url)
+      persistDeployment(owner, repo, branch, url)
       setDeployStatus('')
       setDeployStep('idle')
       setIframeKey(k => k + 1)
@@ -163,6 +230,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
       const url = await fetchDeploymentUrl(owner, repo, token || undefined)
       if (url) {
         setDeployUrl(url)
+        persistDeployment(owner, repo, branch, url)
         setDeployStep('idle')
         setIframeKey(k => k + 1)
       } else if (token) {
@@ -244,6 +312,24 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
 
         {previewSrc && tab === 'preview' && (
           <>
+            {deployUrl && repoDeployHistory.length > 0 && (
+              <div className="flex items-center gap-1 px-2" style={{ borderLeft: '1px solid var(--border-s)', borderRight: '1px solid var(--border-s)', marginRight: 4 }}>
+                <History style={{ width: 11, height: 11, color: 'var(--txt-3)' }} />
+                <select
+                  value={deployUrl}
+                  onChange={e => { setDeployUrl(e.target.value); setIframeKey(k => k + 1) }}
+                  className="appearance-none bg-transparent focus:outline-none"
+                  style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, height: 28, maxWidth: 250 }}
+                  title="Deployment URL history"
+                >
+                  {repoDeployHistory.map((item) => (
+                    <option key={`${item.url}_${item.deployedAt}`} value={item.url}>
+                      {formatHistoryTime(item.deployedAt)} · {item.url}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button onClick={refresh}
               className="flex items-center justify-center transition-all"
               style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -252,6 +338,19 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
               title="Refresh">
               <RefreshCw style={{ width: 12, height: 12 }} />
             </button>
+            {deployUrl && (
+              <button onClick={copyDeployUrl}
+                className="flex items-center gap-1.5 transition-all"
+                style={deployUrlCopied
+                  ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', border: 'none', cursor: 'pointer' }
+                  : { color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+                onMouseEnter={e => { if (!deployUrlCopied) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
+                onMouseLeave={e => { if (!deployUrlCopied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
+                title="Copy deployment URL">
+                {deployUrlCopied ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
+                <span>{deployUrlCopied ? 'url copied!' : 'copy url'}</span>
+              </button>
+            )}
             <button onClick={openNew}
               className="flex items-center gap-1.5 transition-all"
               style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -391,7 +490,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                 </p>
                 <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.7, maxWidth: 260 }}>
                   {projectType === 'vue' ? 'Vue' : 'React'} requires a build step.<br />
-                  Export to GitHub → StackBlitz previews it instantly.
+                  Push to GitHub → auto deploys and opens preview.
                 </p>
               </div>
               <button

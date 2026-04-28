@@ -5,7 +5,7 @@ import { createRepoWithFiles } from '../services/github'
 interface Props {
   files: Record<string, string>
   onClose: () => void
-  onSuccess: (owner: string, repo: string) => void
+  onSuccess: (owner: string, repo: string, token: string) => void
 }
 
 export default function ExportModal({ files, onClose, onSuccess }: Props) {
@@ -19,9 +19,10 @@ export default function ExportModal({ files, onClose, onSuccess }: Props) {
     setStatus('loading')
     setError('')
     try {
-      localStorage.setItem('vibe_gh_token', token.trim())
-      const { owner, repo } = await createRepoWithFiles(token.trim(), repoName.trim(), files)
-      onSuccess(owner, repo)
+      const cleanToken = token.trim()
+      localStorage.setItem('vibe_gh_token', cleanToken)
+      const { owner, repo } = await createRepoWithFiles(cleanToken, repoName.trim(), files)
+      onSuccess(owner, repo, cleanToken)
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류')
       setStatus('error')

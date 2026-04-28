@@ -1,25 +1,46 @@
 ﻿import { useState } from 'react'
 import { ChevronDown, KeyRound, CheckCircle2, X, Zap } from 'lucide-react'
-import { MODELS } from '../services/ai'
+import { MODELS, PROVIDERS, getModelsByProvider } from '../services/ai'
+import type { AIProvider } from '../services/ai'
 
 interface Props {
-  apiKey: string
+  provider: AIProvider
+  apiKeys: Record<AIProvider, string>
   model: string
-  onApiKeyChange: (key: string) => void
-  onModelChange: (model: string) => void
-  isEnvKey?: boolean
+  onProviderChange: (provider: AIProvider) => void
+  onApiKeyChange: (provider: AIProvider, key: string) => void
+  onModelChange: (provider: AIProvider, model: string) => void
+  isEnvKeyByProvider: Record<AIProvider, boolean>
   isMobile?: boolean
 }
 
-export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile }: Props) {
-  const [showModal, setShowModal] = useState(false)
-  const [draft, setDraft] = useState('')
+const ENV_VAR_BY_PROVIDER: Record<AIProvider, string> = {
+  groq: 'VITE_GROQ_API_KEY',
+  openai: 'VITE_OPENAI_API_KEY',
+  gemini: 'VITE_GEMINI_API_KEY',
+}
 
-  const open = () => { setDraft(apiKey); setShowModal(true) }
-  const save = () => { onApiKeyChange(draft.trim()); setShowModal(false) }
+const DOCS_BY_PROVIDER: Record<AIProvider, string> = {
+  groq: 'https://console.groq.com/docs',
+  openai: 'https://platform.openai.com/docs',
+  gemini: 'https://ai.google.dev/gemini-api/docs',
+}
+
+export default function Header({ provider, apiKeys, model, onProviderChange, onApiKeyChange, onModelChange, isEnvKeyByProvider, isMobile }: Props) {
+  const [showModal, setShowModal] = useState(false)
+  const [draft, setDraft] = useState<Record<AIProvider, string>>({ groq: '', openai: '', gemini: '' })
+
+  const open = () => { setDraft(apiKeys); setShowModal(true) }
+  const save = () => {
+    (Object.keys(draft) as AIProvider[]).forEach((p) => onApiKeyChange(p, draft[p].trim()))
+    setShowModal(false)
+  }
   const reloadPage = () => window.location.reload()
 
   const selectedModel = MODELS.find(m => m.id === model)
+  const providerModels = getModelsByProvider(provider)
+  const hasActiveKey = !!apiKeys[provider]
+  const isEnvActiveKey = isEnvKeyByProvider[provider]
 
   return (
     <>
@@ -37,24 +58,34 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             </button>
             <div className="flex items-center gap-2">
               <select
-                value={model}
-                onChange={e => onModelChange(e.target.value)}
+                value={provider}
+                onChange={e => onProviderChange(e.target.value as AIProvider)}
                 className="appearance-none px-2 py-1 text-xs cursor-pointer focus:outline-none bg-transparent"
                 style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', border: '1px solid var(--border)', fontSize: 9 }}
               >
-                {MODELS.map(m => (
+                {PROVIDERS.map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              <select
+                value={model}
+                onChange={e => onModelChange(provider, e.target.value)}
+                className="appearance-none px-2 py-1 text-xs cursor-pointer focus:outline-none bg-transparent"
+                style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', border: '1px solid var(--border)', fontSize: 9 }}
+              >
+                {providerModels.map(m => (
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
               </select>
               <button
-                onClick={isEnvKey ? undefined : open}
+                onClick={open}
                 className="badge transition-opacity"
-                style={apiKey
-                  ? { background: 'var(--ok-bg)', border: '1px solid var(--ok-bd)', color: 'var(--ok)', cursor: isEnvKey ? 'default' : 'pointer' }
+                style={hasActiveKey
+                  ? { background: 'var(--ok-bg)', border: '1px solid var(--ok-bd)', color: 'var(--ok)', cursor: 'pointer' }
                   : { background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)', cursor: 'pointer' }
                 }
               >
-                {apiKey
+                {hasActiveKey
                   ? <><CheckCircle2 style={{ width: 9, height: 9 }} /><span>key ok</span></>
                   : <><KeyRound style={{ width: 9, height: 9 }} /><span>no key</span></>}
               </button>
@@ -78,6 +109,9 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           </p>
           {/* Status badges row */}
           <div className="flex items-center gap-2 mt-1">
+            <span className="badge" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-s)', color: 'var(--txt-2)' }}>
+              {PROVIDERS.find((p) => p.id === provider)?.label ?? provider}
+            </span>
             {/* Model badge */}
             <span className="badge" style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)', color: 'var(--accent)' }}>
               <Zap style={{ width: 9, height: 9 }} />
@@ -85,15 +119,15 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             </span>
             {/* API status badge */}
             <button
-              onClick={isEnvKey ? undefined : open}
+              onClick={open}
               className="badge transition-opacity"
-              style={apiKey
-                ? { background: 'var(--ok-bg)', border: '1px solid var(--ok-bd)', color: 'var(--ok)', cursor: isEnvKey ? 'default' : 'pointer' }
+              style={hasActiveKey
+                ? { background: 'var(--ok-bg)', border: '1px solid var(--ok-bd)', color: 'var(--ok)', cursor: 'pointer' }
                 : { background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)', cursor: 'pointer' }
               }
-              title={isEnvKey ? '.env.local에서 로드됨' : 'API 키 설정'}
+              title={isEnvActiveKey ? '.env.local에서 로드됨' : 'API 키 설정'}
             >
-              {apiKey
+              {hasActiveKey
                 ? <><CheckCircle2 style={{ width: 9, height: 9 }} /><span>api key loaded</span></>
                 : <><KeyRound style={{ width: 9, height: 9 }} /><span>api key not found</span></>}
             </button>
@@ -105,12 +139,26 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           {/* Model selector nav-style */}
           <div className="relative flex items-center" style={{ borderRight: '1px solid var(--border-s)', paddingRight: 8, marginRight: 4 }}>
             <select
+              value={provider}
+              onChange={e => onProviderChange(e.target.value as AIProvider)}
+              className="appearance-none h-9 pl-2 pr-8 text-xs cursor-pointer focus:outline-none transition-colors bg-transparent"
+              style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)' }}
+            >
+              {PROVIDERS.map(p => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: 'var(--txt-3)' }} />
+          </div>
+
+          <div className="relative flex items-center" style={{ borderRight: '1px solid var(--border-s)', paddingRight: 8, marginRight: 4 }}>
+            <select
               value={model}
-              onChange={e => onModelChange(e.target.value)}
+              onChange={e => onModelChange(provider, e.target.value)}
               className="appearance-none h-9 pl-2 pr-12 text-xs cursor-pointer focus:outline-none transition-colors bg-transparent"
               style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)' }}
             >
-              {MODELS.map(m => (
+              {providerModels.map(m => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
             </select>
@@ -118,7 +166,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           </div>
 
           <NavItem label="Chat" active />
-          <NavItem label="Docs" href="https://console.groq.com/docs" />
+          <NavItem label="Docs" href={DOCS_BY_PROVIDER[provider]} />
         </div>
           </>
         )}
@@ -136,7 +184,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               <div className="flex items-center gap-2">
                 <KeyRound className="w-3.5 h-3.5" style={{ color: 'var(--txt-3)' }} />
                 <span style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12, fontWeight: 600 }}>
-                  Groq API Key Settings
+                  AI API Key Settings
                 </span>
               </div>
               <button onClick={() => setShowModal(false)}
@@ -152,28 +200,49 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                 <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11, marginBottom: 8 }}>
                   # 방법 1 (권장) — .env.local 파일에 저장
                 </p>
-                <div className="px-3 py-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ok)', fontFamily: 'var(--mono-font)', fontSize: 12 }}>
-                  VITE_GROQ_API_KEY=gsk_...
+                <div className="space-y-2">
+                  {(Object.keys(ENV_VAR_BY_PROVIDER) as AIProvider[]).map((p) => (
+                    <div key={p} className="px-3 py-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ok)', fontFamily: 'var(--mono-font)', fontSize: 12 }}>
+                      {ENV_VAR_BY_PROVIDER[p]}={p === 'gemini' ? 'AIza...' : 'sk-...'}
+                    </div>
+                  ))}
                 </div>
               </div>
               <div>
                 <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11, marginBottom: 8 }}>
                   # 방법 2 — 직접 입력 (브라우저에 저장)
                 </p>
-                <input type="password" value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && save()}
-                  placeholder="gsk-..." autoFocus
-                  className="w-full px-3 py-2.5 focus:outline-none transition-colors"
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--accent-bd)',
-                    color: 'var(--txt)',
-                    caretColor: 'var(--accent)',
-                    fontFamily: 'var(--mono-font)',
-                    fontSize: 12,
-                  }}
-                />
+                <div className="space-y-2">
+                  {(Object.keys(draft) as AIProvider[]).map((p, idx) => (
+                    <div key={p}>
+                      <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+                        <span style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                          {PROVIDERS.find((item) => item.id === p)?.label}
+                        </span>
+                        {isEnvKeyByProvider[p] && (
+                          <span style={{ color: 'var(--ok)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                            .env.local 로드됨
+                          </span>
+                        )}
+                      </div>
+                      <input type="password" value={draft[p]}
+                        onChange={e => setDraft((prev) => ({ ...prev, [p]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && save()}
+                        placeholder={p === 'gemini' ? 'AIza...' : 'sk-...'}
+                        autoFocus={idx === 0}
+                        className="w-full px-3 py-2.5 focus:outline-none transition-colors"
+                        style={{
+                          background: 'var(--bg)',
+                          border: '1px solid var(--accent-bd)',
+                          color: 'var(--txt)',
+                          caretColor: 'var(--accent)',
+                          fontFamily: 'var(--mono-font)',
+                          fontSize: 12,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-2 justify-end pt-1">
                 <button onClick={() => setShowModal(false)}

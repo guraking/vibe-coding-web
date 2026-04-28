@@ -17,6 +17,14 @@ export interface TokenUsage {
   resetInSeconds: number
 }
 
+export type AIProvider = 'groq' | 'openai' | 'gemini'
+
+export interface AIModel {
+  id: string
+  label: string
+  provider: AIProvider
+}
+
 /** "33m24.4s" 또는 "45.2s" 형태의 Groq retry 문자열을 초로 변환 */
 function parseRetrySeconds(msg: string): number {
   const m = msg.match(/try again in (\d+)m([\d.]+)s/)
@@ -41,11 +49,29 @@ export class RateLimitError extends Error {
   }
 }
 
-export const MODELS = [
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (무료)' },
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (빠름)' },
-  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
+export const PROVIDERS: { id: AIProvider; label: string }[] = [
+  { id: 'groq', label: 'Groq' },
+  { id: 'openai', label: 'ChatGPT' },
+  { id: 'gemini', label: 'Gemini' },
 ]
+
+export const MODELS: AIModel[] = [
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (무료)', provider: 'groq' },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (빠름)', provider: 'groq' },
+  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', provider: 'groq' },
+  { id: 'gpt-5.5', label: 'GPT-5.5', provider: 'openai' },
+  { id: 'gpt-5.5-mini', label: 'GPT-5.5 mini', provider: 'openai' },
+  { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro', provider: 'gemini' },
+  { id: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash', provider: 'gemini' },
+]
+
+export function getModelsByProvider(provider: AIProvider): AIModel[] {
+  return MODELS.filter((m) => m.provider === provider)
+}
+
+export function getDefaultModel(provider: AIProvider): string {
+  return getModelsByProvider(provider)[0]?.id ?? MODELS[0].id
+}
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer who builds beautiful multi-file web projects instantly from natural language.
 
@@ -183,6 +209,7 @@ Vue mode rules:
 - When refining: keep design language consistent, improve only what was asked`
 
 export async function* streamCode(
+  provider: AIProvider,
   apiKey: string,
   model: string,
   messages: Message[],
@@ -198,7 +225,61 @@ export async function* streamCode(
 
   const systemContent = SYSTEM_PROMPT + currentContext
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  if (provider === 'gemini') {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `${systemContent}\n\nConversation:\n${messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      const msg = (err as { error?: { message?: string } })?.error?.message ?? `API 오류 (HTTP ${response.status})`
+      throw new Error(msg)
+    }
+
+    const parsed = await response.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+    }
+    const text = parsed.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
+    if (text) yield text
+    if (onUsage && parsed.usageMetadata) {
+      onUsage({
+        promptTokens: parsed.usageMetadata.promptTokenCount ?? 0,
+        completionTokens: parsed.usageMetadata.candidatesTokenCount ?? 0,
+        totalTokens: parsed.usageMetadata.totalTokenCount ?? 0,
+        limitPerMin: -1,
+        remainingPerMin: -1,
+        resetInSeconds: -1,
+      })
+    }
+    return
+  }
+
+  const endpoint = provider === 'openai'
+    ? 'https://api.openai.com/v1/chat/completions'
+    : 'https://api.groq.com/openai/v1/chat/completions'
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -211,23 +292,22 @@ export async function* streamCode(
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ],
       stream: true,
-      temperature: 0.7,
-      max_tokens: 4096,
+      ...(provider === 'openai' ? {} : { temperature: 0.7 }),
+      ...(provider === 'openai' ? { max_completion_tokens: 4096 } : { max_tokens: 4096 }),
+      ...(provider === 'openai' ? { stream_options: { include_usage: true } } : {}),
     }),
   })
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
     const msg = (err as { error?: { message?: string } })?.error?.message ?? `API 오류 (HTTP ${response.status})`
-    if (response.status === 429) throw new RateLimitError(msg)
+    if (provider === 'groq' && response.status === 429) throw new RateLimitError(msg)
     throw new Error(msg)
   }
 
-  // Rate-limit headers (available before reading body)
   const limitPerMin = parseInt(response.headers.get('x-ratelimit-limit-tokens') ?? '-1', 10)
   const remainingPerMin = parseInt(response.headers.get('x-ratelimit-remaining-tokens') ?? '-1', 10)
   const resetRaw = response.headers.get('x-ratelimit-reset-tokens') ?? ''
-  // reset value is like "1m30s" or "45s" or "0s"
   const resetInSeconds = (() => {
     const m = resetRaw.match(/(\d+)m(\d+)?s?/)
     if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2] ?? '0', 10)
@@ -253,17 +333,18 @@ export async function* streamCode(
         try {
           const parsed = JSON.parse(data) as {
             choices?: { delta?: { content?: string } }[]
+            usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
             x_groq?: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }
           }
           const content = parsed.choices?.[0]?.delta?.content
           if (typeof content === 'string') yield content
-          // Final chunk from Groq contains x_groq.usage
-          if (parsed.x_groq?.usage && onUsage) {
-            const u = parsed.x_groq.usage
+
+          const usage = provider === 'groq' ? parsed.x_groq?.usage : parsed.usage
+          if (usage && onUsage) {
             onUsage({
-              promptTokens: u.prompt_tokens ?? 0,
-              completionTokens: u.completion_tokens ?? 0,
-              totalTokens: u.total_tokens ?? 0,
+              promptTokens: usage.prompt_tokens ?? 0,
+              completionTokens: usage.completion_tokens ?? 0,
+              totalTokens: usage.total_tokens ?? 0,
               limitPerMin,
               remainingPerMin,
               resetInSeconds,

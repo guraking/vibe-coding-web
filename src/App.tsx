@@ -2,8 +2,27 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import Header from './components/Header'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
-import { streamCode, parseVibe, RateLimitError } from './services/ai'
+import { streamCode, parseVibe, RateLimitError, getDefaultModel, getModelsByProvider } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
+import type { AIProvider } from './services/ai'
+
+function isLikelyMarkup(text: string): boolean {
+  return /<!doctype|<html|<body|<main|<div|<section|<script|<style/i.test(text)
+}
+
+function isValidGeneratedProject(files: Record<string, string>, projectType: 'html' | 'react' | 'vue'): boolean {
+  if (Object.keys(files).length === 0) return false
+  if (projectType === 'html') {
+    return Boolean(files['index.html']) && isLikelyMarkup(files['index.html'])
+  }
+  if (projectType === 'react') {
+    const hasMain = Boolean(files['src/main.jsx'] || files['src/main.tsx'])
+    const hasApp = Boolean(files['src/App.jsx'] || files['src/App.tsx'])
+    return Boolean(files['package.json']) && hasMain && hasApp
+  }
+  const hasMain = Boolean(files['src/main.js'] || files['src/main.ts'])
+  return Boolean(files['package.json']) && hasMain && Boolean(files['src/App.vue'])
+}
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -23,12 +42,39 @@ export default function App() {
     const t = setTimeout(() => setRetryAt(null), remaining)
     return () => clearTimeout(t)
   }, [retryAt])
-  // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
-  const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
-  const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
-  const [model, setModel] = useState(() => localStorage.getItem('vibe_model') ?? 'llama-3.3-70b-versatile')
+  const envKeys: Record<AIProvider, string> = {
+    groq: (import.meta.env.VITE_GROQ_API_KEY as string | undefined)?.trim() || '',
+    openai: (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim() || '',
+    gemini: (import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim() || '',
+  }
+  const [provider, setProvider] = useState<AIProvider>(() => {
+    const saved = localStorage.getItem('vibe_provider') as AIProvider | null
+    return saved === 'groq' || saved === 'openai' || saved === 'gemini' ? saved : 'groq'
+  })
+  const [apiKeys, setApiKeys] = useState<Record<AIProvider, string>>(() => ({
+    groq: envKeys.groq || localStorage.getItem('vibe_api_key_groq') || '',
+    openai: envKeys.openai || localStorage.getItem('vibe_api_key_openai') || '',
+    gemini: envKeys.gemini || localStorage.getItem('vibe_api_key_gemini') || '',
+  }))
+  const pickInitialModel = (targetProvider: AIProvider) => {
+    const saved = localStorage.getItem(`vibe_model_${targetProvider}`)
+    const available = getModelsByProvider(targetProvider)
+    if (saved && available.some((m) => m.id === saved)) return saved
+    return getDefaultModel(targetProvider)
+  }
+  const [modelByProvider, setModelByProvider] = useState<Record<AIProvider, string>>(() => ({
+    groq: pickInitialModel('groq'),
+    openai: pickInitialModel('openai'),
+    gemini: pickInitialModel('gemini'),
+  }))
   const bufferRef = useRef('')
-  const isEnvKey = Boolean(envKey?.trim())
+  const isEnvKeyByProvider: Record<AIProvider, boolean> = {
+    groq: Boolean(envKeys.groq),
+    openai: Boolean(envKeys.openai),
+    gemini: Boolean(envKeys.gemini),
+  }
+  const activeApiKey = apiKeys[provider]
+  const activeModel = modelByProvider[provider]
 
   // 드래그 리사이저
   const [chatWidth, setChatWidth] = useState(340)
@@ -57,18 +103,23 @@ export default function App() {
     document.body.style.userSelect = ''
   }, [])
 
-  const handleApiKeyChange = (key: string) => {
-    setApiKey(key)
-    localStorage.setItem('vibe_api_key', key)
+  const handleApiKeyChange = (targetProvider: AIProvider, key: string) => {
+    setApiKeys((prev) => ({ ...prev, [targetProvider]: key }))
+    localStorage.setItem(`vibe_api_key_${targetProvider}`, key)
   }
 
-  const handleModelChange = (m: string) => {
-    setModel(m)
-    localStorage.setItem('vibe_model', m)
+  const handleProviderChange = (next: AIProvider) => {
+    setProvider(next)
+    localStorage.setItem('vibe_provider', next)
+  }
+
+  const handleModelChange = (targetProvider: AIProvider, nextModel: string) => {
+    setModelByProvider((prev) => ({ ...prev, [targetProvider]: nextModel }))
+    localStorage.setItem(`vibe_model_${targetProvider}`, nextModel)
   }
 
   const handleSend = async (prompt: string) => {
-    if (!apiKey || isLoading || retryAt) return
+    if (!activeApiKey || isLoading || (provider === 'groq' && retryAt)) return
     const userMsg: Message = { role: 'user', content: prompt }
     const history = [...messages, userMsg]
     setMessages(history)
@@ -77,7 +128,7 @@ export default function App() {
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
     try {
-      for await (const chunk of streamCode(apiKey, model, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
+      for await (const chunk of streamCode(provider, activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
         bufferRef.current += chunk
         const { explanation } = parseVibe(bufferRef.current)
         setMessages((prev) => {
@@ -86,7 +137,51 @@ export default function App() {
           return updated
         })
       }
-      const { files, explanation, projectType: pType } = parseVibe(bufferRef.current)
+
+      let parsed = parseVibe(bufferRef.current)
+
+      // 일부 모델이 설명문 위주로 응답하는 경우 한 번 자동 보정 재시도
+      if (!isValidGeneratedProject(parsed.files, parsed.projectType)) {
+        const repairPrompt = [
+          '아래 원문 응답은 형식이 깨졌거나 코드가 부족합니다.',
+          '반드시 <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식으로만 다시 출력하세요.',
+          '실제 실행 가능한 완성 코드(디자인+기능 포함)로 생성하고 설명문만 보내지 마세요.',
+          '',
+          '[원문 응답 시작]',
+          bufferRef.current,
+          '[원문 응답 끝]',
+        ].join('\n')
+
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: '응답 형식 보정 중... (코드 구조 자동 재생성)',
+            files: {},
+          }
+          return updated
+        })
+
+        let repairedRaw = ''
+        for await (const chunk of streamCode(
+          provider,
+          activeApiKey,
+          activeModel,
+          [{ role: 'user', content: repairPrompt }],
+          Object.keys(projectFiles).length ? projectFiles : undefined,
+          setTokenUsage,
+        )) {
+          repairedRaw += chunk
+        }
+
+        const repaired = parseVibe(repairedRaw)
+        if (isValidGeneratedProject(repaired.files, repaired.projectType)) {
+          parsed = repaired
+          bufferRef.current = repairedRaw
+        }
+      }
+
+      const { files, explanation, projectType: pType } = parsed
       if (Object.keys(files).length > 0) {
         projectFilesRef.current = files
         setProjectFiles(files)
@@ -102,7 +197,7 @@ export default function App() {
         return updated
       })
     } catch (err: unknown) {
-      if (err instanceof RateLimitError) {
+      if (provider === 'groq' && err instanceof RateLimitError) {
         setRetryAt(Date.now() + err.retryAfterSeconds * 1000)
         setMessages((prev) => {
           const updated = [...prev]
@@ -165,7 +260,15 @@ export default function App() {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
-      <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} isEnvKey={isEnvKey} />
+      <Header
+        provider={provider}
+        apiKeys={apiKeys}
+        model={activeModel}
+        onProviderChange={handleProviderChange}
+        onApiKeyChange={handleApiKeyChange}
+        onModelChange={handleModelChange}
+        isEnvKeyByProvider={isEnvKeyByProvider}
+      />
       <div className="flex flex-1 overflow-hidden">
         {/* Left narrow tool window bar (IntelliJ style) */}
         <div
@@ -193,7 +296,15 @@ export default function App() {
         {/* Chat panel (collapsible) */}
         {activeToolWindow === 'chat' && (
           <>
-            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} tokenUsage={tokenUsage} retryAt={retryAt} />
+            <ChatPanel
+              messages={messages}
+              onSend={handleSend}
+              isLoading={isLoading}
+              hasApiKey={!!activeApiKey}
+              width={chatWidth}
+              tokenUsage={tokenUsage}
+              retryAt={provider === 'groq' ? retryAt : null}
+            />
             {/* Drag handle */}
             <div
               onMouseDown={onMouseDown}

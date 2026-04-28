@@ -20,6 +20,216 @@ function toBase64(str: string): string {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))))
 }
 
+function dirname(path: string): string {
+  const idx = path.lastIndexOf('/')
+  return idx >= 0 ? path.slice(0, idx) : ''
+}
+
+function resolveRelativePath(fromFile: string, rel: string): string {
+  const base = dirname(fromFile)
+  const parts = `${base}/${rel}`.split('/').filter(Boolean)
+  const out: string[] = []
+  for (const part of parts) {
+    if (part === '.') continue
+    if (part === '..') out.pop()
+    else out.push(part)
+  }
+  return out.join('/')
+}
+
+function resolveImportCandidates(fromFile: string, rel: string): string[] {
+  const base = resolveRelativePath(fromFile, rel)
+  const extMatch = base.match(/\.[a-z0-9]+$/i)
+  if (extMatch) return [base]
+
+  const importerExt = fromFile.match(/\.[a-z0-9]+$/i)?.[0] ?? '.js'
+  const jsLike = ['.js', '.jsx', '.ts', '.tsx', '.mjs']
+  const prefExts = jsLike.includes(importerExt)
+    ? [importerExt, '.jsx', '.tsx', '.js', '.ts', '.vue']
+    : ['.js', '.jsx', '.tsx', '.ts', '.vue']
+
+  const out: string[] = []
+  for (const ext of prefExts) {
+    out.push(`${base}${ext}`)
+    out.push(`${base}/index${ext}`)
+  }
+  out.push(`${base}.css`)
+  return Array.from(new Set(out))
+}
+
+function makeFallbackModule(path: string): string {
+  if (path.endsWith('.css')) return '/* generated missing import fallback */\n'
+  if (path.endsWith('.vue')) {
+    return `<template>\n  <div style="display:none"></div>\n</template>\n`
+  }
+  if (path.endsWith('.tsx')) {
+    return `export const __vibePlaceholder = true\n\nexport default function VibePlaceholder(): JSX.Element | null {\n  return null\n}\n`
+  }
+  return `export const __vibePlaceholder = true\n\nexport default function VibePlaceholder() {\n  return null\n}\n`
+}
+
+function ensureMissingImportedModules(files: Record<string, string>): Record<string, string> {
+  const next: Record<string, string> = { ...files }
+  const sourceFiles = Object.keys(next).filter((p) => /\.(jsx?|tsx?|mjs|cjs|vue)$/i.test(p))
+
+  for (const sourcePath of sourceFiles) {
+    const content = next[sourcePath]
+    if (!content) continue
+
+    const imports = [
+      ...content.matchAll(/import\s+[^'"\n]+\s+from\s+['"](.+?)['"]/g),
+      ...content.matchAll(/import\s+['"](.+?)['"]/g),
+    ]
+
+    for (const m of imports) {
+      const rel = m[1]
+      if (!rel || (!rel.startsWith('./') && !rel.startsWith('../'))) continue
+
+      const candidates = resolveImportCandidates(sourcePath, rel)
+      const existing = candidates.find((c) => next[c] !== undefined)
+      if (existing) continue
+
+      const fallbackPath = candidates[0]
+      next[fallbackPath] = makeFallbackModule(fallbackPath)
+    }
+  }
+
+  return next
+}
+
+function repairCssSyntax(content: string): string {
+  let out = content
+  // Common LLM mistake: missing semicolon before the next custom property.
+  out = out.replace(/([a-zA-Z-]+\s*:\s*[^;{}\n]+)\s+(--[a-zA-Z0-9_-]+\s*:)/g, '$1;\n  $2')
+  return out
+}
+
+function ensureProjectToolchain(files: Record<string, string>): Record<string, string> {
+  const next: Record<string, string> = { ...files }
+  const type = detectProjectType(next)
+  if (type === 'html') return next
+
+  const pkgFallback = {
+    name: 'vibe-app',
+    version: '0.0.0',
+    type: 'module',
+    scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
+    dependencies: {} as Record<string, string>,
+    devDependencies: {} as Record<string, string>,
+  }
+
+  let pkg = pkgFallback
+  try {
+    if (next['package.json']) {
+      const parsed = JSON.parse(next['package.json']) as {
+        name?: string
+        version?: string
+        type?: string
+        scripts?: Record<string, string>
+        dependencies?: Record<string, string>
+        devDependencies?: Record<string, string>
+      }
+      pkg = {
+        name: parsed.name || pkgFallback.name,
+        version: parsed.version || pkgFallback.version,
+        type: parsed.type || pkgFallback.type,
+        scripts: { ...pkgFallback.scripts, ...(parsed.scripts || {}) },
+        dependencies: { ...(parsed.dependencies || {}) },
+        devDependencies: { ...(parsed.devDependencies || {}) },
+      }
+    }
+  } catch {
+    pkg = pkgFallback
+  }
+
+  if (type === 'react') {
+    if (!pkg.dependencies.react) pkg.dependencies.react = '^18.3.0'
+    if (!pkg.dependencies['react-dom']) pkg.dependencies['react-dom'] = '^18.3.0'
+    if (!pkg.devDependencies.vite) pkg.devDependencies.vite = '^6.0.0'
+    if (!pkg.devDependencies['@vitejs/plugin-react']) pkg.devDependencies['@vitejs/plugin-react'] = '^4.3.0'
+
+    if (!next['vite.config.js'] && !next['vite.config.ts']) {
+      next['vite.config.js'] = `import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\nexport default defineConfig({\n  plugins: [react()],\n})\n`
+    }
+
+    if (!next['src/main.jsx'] && !next['src/main.tsx']) {
+      next['src/main.jsx'] = `import { StrictMode } from 'react'\nimport { createRoot } from 'react-dom/client'\nimport './index.css'\nimport App from './App.jsx'\n\ncreateRoot(document.getElementById('root')).render(\n  <StrictMode>\n    <App />\n  </StrictMode>,\n)\n`
+    }
+    if (!next['src/App.jsx'] && !next['src/App.tsx']) {
+      next['src/App.jsx'] = `export default function App() {\n  return <div style={{ padding: 24 }}>Vibe App</div>\n}\n`
+    }
+    if (!next['src/index.css']) next['src/index.css'] = '/* generated fallback stylesheet */\n'
+    if (!next['index.html']) {
+      next['index.html'] = `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>Vibe App</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.jsx"></script>\n  </body>\n</html>\n`
+    }
+  }
+
+  if (type === 'vue') {
+    if (!pkg.dependencies.vue) pkg.dependencies.vue = '^3.5.0'
+    if (!pkg.devDependencies.vite) pkg.devDependencies.vite = '^6.0.0'
+    if (!pkg.devDependencies['@vitejs/plugin-vue']) pkg.devDependencies['@vitejs/plugin-vue'] = '^5.2.0'
+
+    if (!next['vite.config.js'] && !next['vite.config.ts']) {
+      next['vite.config.js'] = `import { defineConfig } from 'vite'\nimport vue from '@vitejs/plugin-vue'\n\nexport default defineConfig({\n  plugins: [vue()],\n})\n`
+    }
+
+    if (!next['src/main.js'] && !next['src/main.ts']) {
+      next['src/main.js'] = `import { createApp } from 'vue'\nimport './index.css'\nimport App from './App.vue'\n\ncreateApp(App).mount('#app')\n`
+    }
+    if (!next['src/App.vue']) {
+      next['src/App.vue'] = `<template>\n  <main style="padding: 24px;">Vibe App</main>\n</template>\n`
+    }
+    if (!next['src/index.css']) next['src/index.css'] = '/* generated fallback stylesheet */\n'
+    if (!next['index.html']) {
+      next['index.html'] = `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>Vibe App</title>\n  </head>\n  <body>\n    <div id="app"></div>\n    <script type="module" src="/src/main.js"></script>\n  </body>\n</html>\n`
+    }
+  }
+
+  next['package.json'] = JSON.stringify(pkg, null, 2)
+  return next
+}
+
+function normalizeFilesForBuild(files: Record<string, string>): Record<string, string> {
+  const next: Record<string, string> = ensureMissingImportedModules(ensureProjectToolchain(files))
+  const mainCandidates = ['src/main.tsx', 'src/main.jsx', 'src/main.ts', 'src/main.js']
+
+  for (const mainFile of mainCandidates) {
+    const mainContent = next[mainFile]
+    if (!mainContent) continue
+
+    const appImport = mainContent.match(/import\s+App\s+from\s+['"](.+?)['"]/)
+    if (appImport) {
+      let appPath = resolveRelativePath(mainFile, appImport[1])
+      if (!/\.[a-z0-9]+$/i.test(appPath)) {
+        appPath += mainFile.endsWith('.tsx') ? '.tsx' : '.jsx'
+      }
+      if (!next[appPath]) {
+        if (appPath.endsWith('.vue')) {
+          next[appPath] = `<template>\n  <main style="padding:24px; font-family: system-ui;">\n    <h1>Vibe App</h1>\n    <p>Generated fallback App.vue</p>\n  </main>\n</template>\n\n<script setup>\n</script>\n`
+        } else if (appPath.endsWith('.tsx')) {
+          next[appPath] = `export default function App() {\n  return (\n    <main style={{ padding: 24, fontFamily: 'system-ui' }}>\n      <h1>Vibe App</h1>\n      <p>Generated fallback App.tsx</p>\n    </main>\n  )\n}\n`
+        } else {
+          next[appPath] = `export default function App() {\n  return (\n    <main style={{ padding: 24, fontFamily: 'system-ui' }}>\n      <h1>Vibe App</h1>\n      <p>Generated fallback App.jsx</p>\n    </main>\n  )\n}\n`
+        }
+      }
+    }
+
+    const cssImports = [...mainContent.matchAll(/import\s+['"](.+?\.css)['"]/g)]
+    for (const m of cssImports) {
+      const cssPath = resolveRelativePath(mainFile, m[1])
+      if (!next[cssPath]) next[cssPath] = '/* generated fallback stylesheet */\n'
+    }
+  }
+
+  for (const [path, content] of Object.entries(next)) {
+    if (path.endsWith('.css')) {
+      next[path] = repairCssSyntax(content)
+    }
+  }
+
+  return next
+}
+
 export async function createRepoWithFiles(
   token: string,
   repoName: string,
@@ -27,6 +237,7 @@ export async function createRepoWithFiles(
 ): Promise<{ owner: string; repo: string; url: string }> {
   const headers = ghHeaders(token)
   const { login: owner } = await getGitHubUser(token)
+  const normalizedFiles = normalizeFilesForBuild(files)
 
   // 1. Create empty repo (no auto_init — avoids timing/409 issues with git data API)
   const createRes = await fetch(`${GH_API}/user/repos`, {
@@ -46,7 +257,7 @@ export async function createRepoWithFiles(
 
   // 2. Upload files sequentially via Contents API.
   //    First PUT on an empty repo creates the initial commit + main branch automatically.
-  const entries = Object.entries(files)
+  const entries = Object.entries(normalizedFiles)
   for (let i = 0; i < entries.length; i++) {
     const [path, content] = entries[i]
     const putRes = await fetch(`${GH_API}/repos/${owner}/${repoName}/contents/${path}`, {
@@ -252,26 +463,38 @@ export async function deployToGitHubPages(
   const workflowPath = '.github/workflows/vibe-deploy.yml'
   const workflowContent = generateDeployWorkflow(branch, repo)
 
-  // 기존 파일 SHA 확인 (update 시 필요)
-  let existingSha: string | undefined
-  const checkRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, { headers })
-  if (checkRes.ok) {
-    const data = await checkRes.json() as { sha: string }
-    existingSha = data.sha
-  }
-
-  const putBody: Record<string, unknown> = {
-    message: existingSha ? 'chore: update vibe deploy workflow' : 'chore: add vibe GitHub Pages deploy workflow',
+  // create-first 전략: 신규 저장소에서 불필요한 404 pre-check를 피함
+  const putCreateBody: Record<string, unknown> = {
+    message: 'chore: add vibe GitHub Pages deploy workflow',
     content: toBase64(workflowContent),
     branch,
   }
-  if (existingSha) putBody.sha = existingSha
 
-  const putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
+  let putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
     method: 'PUT',
     headers,
-    body: JSON.stringify(putBody),
+    body: JSON.stringify(putCreateBody),
   })
+
+  // 이미 파일이 있으면 sha를 읽어 update로 재시도
+  if (!putRes.ok && (putRes.status === 409 || putRes.status === 422)) {
+    const checkRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, { headers })
+    if (checkRes.ok) {
+      const data = await checkRes.json() as { sha: string }
+      const putUpdateBody: Record<string, unknown> = {
+        message: 'chore: update vibe deploy workflow',
+        content: toBase64(workflowContent),
+        branch,
+        sha: data.sha,
+      }
+      putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(putUpdateBody),
+      })
+    }
+  }
+
   if (!putRes.ok) {
     const err = await putRes.json().catch(() => ({})) as { message?: string }
     const msg = err.message || ''
@@ -283,17 +506,14 @@ export async function deployToGitHubPages(
 
   // ── Step 2: GitHub Pages 활성화 ───────────────────────────────────────────
   onStatus('GitHub Pages 활성화 중...')
-  // GET으로 먼저 존재 여부 확인 → 없으면 POST, 있으면 PUT (409 방지)
-  const pagesCheckRes = await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, { headers })
-  if (pagesCheckRes.status === 404) {
-    // Pages 미존재 → 생성
-    await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ build_type: 'workflow' }),
-    }).catch(() => {})
-  } else if (pagesCheckRes.ok) {
-    // Pages 이미 존재 → build_type 업데이트
+  // create-first 전략: 404 pre-check 대신 POST 후 충돌 시 PUT
+  const pagesCreateRes = await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ build_type: 'workflow' }),
+  }).catch(() => null)
+
+  if (pagesCreateRes && (pagesCreateRes.status === 409 || pagesCreateRes.status === 422)) {
     await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
       method: 'PUT',
       headers,
