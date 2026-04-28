@@ -143,6 +143,14 @@ export default function App() {
   const isMobile = useIsMobile()
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat')
 
+  const commonImport = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue') => {
+    projectFilesRef.current = importedFiles
+    setProjectFiles(importedFiles)
+    setProjectType(importedType)
+    setPreviewVersion(v => v + 1)
+    if (isMobile) setMobileTab('preview')
+  }
+
   // auto-switch to preview on mobile when files are generated
   const prevFilesLen = useRef(0)
   useEffect(() => {
