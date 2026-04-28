@@ -164,14 +164,14 @@ export default function App() {
             <div
               onMouseDown={onMouseDown}
               style={{
-                width: 3,
+                width: 1,
                 flexShrink: 0,
-                background: 'transparent',
+                background: 'var(--border)',
                 cursor: 'col-resize',
                 transition: 'background 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
-              onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
+              onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
             />
           </>
         )}

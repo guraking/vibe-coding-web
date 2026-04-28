@@ -1,5 +1,33 @@
-﻿import { useState } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2 } from 'lucide-react'
+﻿import { useState, useEffect, useRef } from 'react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw } from 'lucide-react'
+
+function prepareHtml(raw: string): string {
+  const trimmed = raw.trim()
+  const isFullDoc = /<!doctype\s+html/i.test(trimmed)
+
+  let doc = isFullDoc ? trimmed : `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>* { font-family: 'Inter', sans-serif; } body { margin: 0; }</style>
+</head>
+<body>
+${trimmed}
+</body>
+</html>`
+
+  // 완전한 문서지만 Tailwind가 없으면 주입
+  if (isFullDoc && !doc.includes('cdn.tailwindcss.com')) {
+    doc = doc.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
+  }
+
+  return doc
+}
 
 interface Props {
   html: string
@@ -12,15 +40,28 @@ type Tab = 'preview' | 'code'
 export default function PreviewPanel({ html, code, isLoading }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [copied, setCopied] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const prevUrlRef = useRef<string>('')
+
+  useEffect(() => {
+    if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current)
+    if (!html) { setPreviewUrl(''); prevUrlRef.current = ''; return }
+    const blob = new Blob([prepareHtml(html)], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    setPreviewUrl(url)
+    prevUrlRef.current = url
+    return () => { URL.revokeObjectURL(url) }
+  }, [html])
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(code)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
   const openNew = () => {
-    const w = window.open('', '_blank')
-    if (w) { w.document.write(html); w.document.close() }
+    if (previewUrl) window.open(previewUrl, '_blank')
   }
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const refresh = () => { if (iframeRef.current) iframeRef.current.src = iframeRef.current.src }
 
   const Tab = ({ id, icon: Icon, label }: { id: 'preview' | 'code', icon: React.ElementType, label: string }) => (
     <button onClick={() => setTab(id)}
@@ -52,6 +93,16 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
           </div>
         )}
 
+        {previewUrl && tab === 'preview' && (
+          <button onClick={refresh}
+            className="flex items-center justify-center w-7 h-7 rounded-md text-xs transition-all"
+            style={{ color: 'var(--txt-3)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}
+            title="새로고침">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        )}
         {code && tab === 'code' && (
           <button onClick={copyCode}
             className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
@@ -79,9 +130,9 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
       <div className="flex-1 relative overflow-hidden">
         {/* Preview */}
         <div className={`absolute inset-0 flex flex-col ${tab === 'preview' ? '' : 'hidden'}`}>
-          {html ? (
-            <iframe srcDoc={html} className="w-full h-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups" title="Preview" />
+          {previewUrl ? (
+            <iframe ref={iframeRef} src={previewUrl} className="w-full h-full border-0"
+              allow="fullscreen" title="Preview" />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
