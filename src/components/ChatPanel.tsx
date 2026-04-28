@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Loader2, Terminal, Clock } from 'lucide-react'
+import { Send, RotateCcw, AlertCircle, Terminal, Clock } from 'lucide-react'
 import type { Message, TokenUsage } from '../services/ai'
 
 interface Props {
@@ -25,10 +25,13 @@ const SUGGESTIONS = [
 
 function Dots() {
   return (
-    <span className="inline-flex gap-1 items-center">
-      {[0, 150, 300].map(d => (
-        <span key={d} className="w-1 h-1 animate-bounce"
-          style={{ background: 'var(--accent)', animationDelay: `${d}ms`, animationDuration: '1s' }} />
+    <span className="inline-flex gap-1 items-center px-2 py-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-s)' }}>
+      {Array.from({ length: 10 }).map((_, i) => (
+        <span
+          key={i}
+          className="pixel-loader-cell"
+          style={{ width: 4, height: 4, animationDelay: `${i * 70}ms` }}
+        />
       ))}
     </span>
   )
@@ -295,7 +298,17 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
               onMouseEnter={e => { if (canSend) e.currentTarget.style.background = 'var(--accent-h)' }}
               onMouseLeave={e => { if (canSend) e.currentTarget.style.background = 'var(--accent)' }}>
               {isLoading
-                ? <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+                ? (
+                  <span className="inline-flex gap-0.5 items-center" aria-hidden="true">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className="pixel-loader-cell"
+                        style={{ width: 3, height: 3, animationDelay: `${i * 70}ms` }}
+                      />
+                    ))}
+                  </span>
+                )
                 : <><Send style={{ width: 12, height: 12 }} /><span>run</span></>}
             </button>
           </div>

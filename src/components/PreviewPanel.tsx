@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History } from 'lucide-react'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
@@ -72,6 +72,67 @@ function fileIcon(name: string) {
   if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.jsx') || name.endsWith('.tsx'))
     return <FileText style={{ width: 12, height: 12, color: '#f59e0b' }} className="shrink-0" />
   return <FileCode2 style={{ width: 12, height: 12, color: 'var(--ok)' }} className="shrink-0" />
+}
+
+function PixelMiniBar() {
+  return (
+    <span className="inline-flex gap-0.5 ml-1" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <span
+          key={i}
+          className="pixel-loader-cell"
+          style={{ width: 3, height: 3, animationDelay: `${i * 70}ms` }}
+        />
+      ))}
+    </span>
+  )
+}
+
+function PixelLoadingBar({
+  size = 'md',
+  label,
+  subLabel,
+}: {
+  size?: 'sm' | 'md' | 'lg'
+  label?: string
+  subLabel?: string
+}) {
+  const cells = size === 'sm' ? 10 : size === 'lg' ? 20 : 14
+  const cellSize = size === 'sm' ? 4 : size === 'lg' ? 9 : 6
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {label && (
+        <p style={{ color: 'var(--txt)', fontFamily: 'var(--pixel-font)', fontSize: size === 'lg' ? 10 : 9 }}>
+          {label}
+        </p>
+      )}
+      <div
+        className="flex items-center gap-1 px-2 py-1"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          boxShadow: '2px 2px 0 var(--border-s)',
+        }}
+      >
+        {Array.from({ length: cells }).map((_, i) => (
+          <span
+            key={i}
+            className="pixel-loader-cell"
+            style={{
+              width: cellSize,
+              height: cellSize,
+              animationDelay: `${i * 80}ms`,
+            }}
+          />
+        ))}
+      </div>
+      {subLabel && (
+        <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+          {subLabel}
+        </p>
+      )}
+    </div>
+  )
 }
 
 export default function PreviewPanel({ files, projectType, isLoading, onImport }: Props) {
@@ -262,7 +323,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
       <Icon style={{ width: 12, height: 12 }} />
       <span>{label}</span>
       {id === 'preview' && isLoading && (
-        <Loader2 style={{ width: 10, height: 10, marginLeft: 4, color: 'var(--accent)' }} className="animate-spin" />
+        <PixelMiniBar />
       )}
     </button>
   )
@@ -279,7 +340,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         {isLoading && (
           <div className="flex items-center gap-1.5 mr-2"
             style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
-            <span className="w-1.5 h-1.5 animate-pulse" style={{ background: 'var(--accent)', display: 'inline-block' }} />
+            <PixelMiniBar />
             generating...
           </div>
         )}
@@ -380,96 +441,29 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
           {isLoading && !previewSrc ? (
             /* AI 생성 중 */
-            <div className="flex-1 flex flex-col items-center justify-center gap-8" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
-              {/* Background gradient blur */}
-              <div style={{
-                position: 'absolute',
-                top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 280, height: 280,
-                background: `radial-gradient(circle, var(--accent-bg) 0%, transparent 70%)`,
-                filter: 'blur(40px)',
-                zIndex: 0,
-              }} />
-              
-              {/* Main content */}
-              <div className="relative z-10 flex flex-col items-center gap-8">
-                {/* Large animated icon */}
-                <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
-                  {/* Outer rotating ring */}
-                  <div style={{
-                    position: 'absolute',
-                    width: '100%', height: '100%',
-                    border: '2px solid transparent',
-                    borderTopColor: 'var(--accent)',
-                    borderRightColor: 'var(--accent)',
-                    borderRadius: '50%',
-                    animation: 'spin 2.4s linear infinite',
-                  }} />
-                  
-                  {/* Middle pulsing ring */}
-                  <div style={{
-                    position: 'absolute',
-                    width: '75%', height: '75%',
-                    border: '1px solid var(--accent)',
-                    borderRadius: '50%',
-                    opacity: 0.4,
-                    animation: 'pulse-scale 2s ease-in-out infinite',
-                  }} />
-                </div>
-
-                {/* Text content */}
-                <div className="text-center flex flex-col gap-3">
-                  <div>
-                    <p style={{ 
-                      color: 'var(--txt)', 
-                      fontFamily: 'var(--mono-font)', 
-                      fontSize: 18, 
-                      fontWeight: 600, 
-                      letterSpacing: '-0.3px',
-                      lineHeight: 1.2,
-                    }}>
-                      AI가 생성 중입니다
-                    </p>
-                    <p style={{ 
-                      color: 'var(--accent)', 
-                      fontFamily: 'var(--mono-font)', 
-                      fontSize: 13, 
-                      fontStyle: 'italic',
-                      fontWeight: 500,
-                      marginTop: 4,
-                    }}>
-                      generating amazing code...
-                    </p>
-                  </div>
-                  <p style={{ 
-                    color: 'var(--txt-3)', 
-                    fontFamily: 'var(--mono-font)', 
-                    fontSize: 11, 
-                    lineHeight: 1.6,
-                    maxWidth: 240,
-                  }}>
-                    멋진 프로젝트를 만들고 있어요
+            <div className="flex-1 flex flex-col items-center justify-center gap-7 scanlines" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
+              <div
+                className="pixel-panel"
+                style={{
+                  padding: '18px 22px',
+                  border: '2px solid var(--accent-bd)',
+                  boxShadow: '4px 4px 0 rgba(0,0,0,0.12)',
+                  background: 'linear-gradient(180deg, var(--bg-panel), #eceff4)',
+                }}
+              >
+                <div className="text-center" style={{ marginBottom: 14 }}>
+                  <p style={{ color: 'var(--txt)', fontFamily: 'var(--pixel-font)', fontSize: 12, marginBottom: 7 }}>
+                    AI GENERATING
+                  </p>
+                  <p style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
+                    BUILDING PIXEL MAGIC...
                   </p>
                 </div>
-
-                {/* Animated dots */}
-                <div className="flex gap-3" style={{ marginTop: 4 }}>
-                  {[0, 1, 2].map(i => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 8, height: 8,
-                        background: 'var(--accent)',
-                        borderRadius: '50%',
-                        animation: `wave 1.6s ease-in-out infinite`,
-                        animationDelay: `${i * 0.2}s`,
-                        boxShadow: '0 0 12px var(--accent)',
-                      }}
-                    />
-                  ))}
-                </div>
+                <PixelLoadingBar size="lg" />
               </div>
+              <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                파일과 컴포넌트를 조립 중입니다
+              </p>
             </div>
           ) : previewSrc ? (
             <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
@@ -477,28 +471,15 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
           ) : deployStep === 'checking' ? (
             /* 임포트 직후 기존 배포 URL 조회 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <Loader2 style={{ width: 20, height: 20, color: 'var(--accent)' }} className="animate-spin" />
-              <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
-                기존 배포 URL 확인 중...
-              </p>
+              <PixelLoadingBar size="md" label="DEPLOY LOOKUP" subLabel="기존 배포 URL 확인 중..." />
             </div>
           ) : deployStep === 'deploying' ? (
             /* GitHub Pages 배포 진행 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
-              <div style={{
-                width: 56, height: 56,
-                background: 'var(--accent-bg)',
-                border: '1px solid var(--accent-bd)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Loader2 style={{ width: 24, height: 24, color: 'var(--accent)' }} className="animate-spin" />
-              </div>
+              <PixelLoadingBar size="lg" label="DEPLOYING" subLabel={deployStatus || '준비 중...'} />
               <div className="text-center flex flex-col gap-1.5">
                 <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12 }}>
                   GitHub Pages 배포 중
-                </p>
-                <p style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10, minHeight: 16 }}>
-                  {deployStatus || '준비 중...'}
                 </p>
               </div>
               {githubRepo && (
@@ -719,7 +700,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
           )}
           {isLoading && (
             <span className="flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-              <Loader2 style={{ width: 10, height: 10 }} className="animate-spin" /> generating
+              <PixelMiniBar /> generating
             </span>
           )}
         </div>
