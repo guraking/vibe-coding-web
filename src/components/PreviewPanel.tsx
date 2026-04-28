@@ -380,41 +380,108 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
           {isLoading && !previewSrc ? (
             /* AI 생성 중 */
-            <div className="flex-1 flex flex-col items-center justify-center gap-6" style={{ background: 'var(--bg)' }}>
-              <div className="relative flex items-center justify-center">
-                <div className="absolute w-20 h-20 rounded-full animate-pulse" style={{ background: 'var(--accent)', opacity: 0.1 }} />
-                <div style={{
-                  width: 64, height: 64,
-                  background: 'var(--accent-bg)',
-                  border: '2px solid var(--accent)',
-                  borderRadius: 8,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  position: 'relative',
-                }}>
-                  <Loader2 style={{ width: 32, height: 32, color: 'var(--accent)' }} className="animate-spin" />
+            <div className="flex-1 flex flex-col items-center justify-center gap-8" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
+              {/* Background gradient blur */}
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 280, height: 280,
+                background: `radial-gradient(circle, var(--accent-bg) 0%, transparent 70%)`,
+                filter: 'blur(40px)',
+                zIndex: 0,
+              }} />
+              
+              {/* Main content */}
+              <div className="relative z-10 flex flex-col items-center gap-8">
+                {/* Large animated icon */}
+                <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
+                  {/* Outer rotating ring */}
+                  <div style={{
+                    position: 'absolute',
+                    width: '100%', height: '100%',
+                    border: '2px solid transparent',
+                    borderTopColor: 'var(--accent)',
+                    borderRightColor: 'var(--accent)',
+                    borderRadius: '50%',
+                    animation: 'spin 2.4s linear infinite',
+                  }} />
+                  
+                  {/* Middle pulsing ring */}
+                  <div style={{
+                    position: 'absolute',
+                    width: '75%', height: '75%',
+                    border: '1px solid var(--accent)',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'pulse-scale 2s ease-in-out infinite',
+                  }} />
+                  
+                  {/* Center icon */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 56, height: 56,
+                    background: 'var(--accent)',
+                    borderRadius: 12,
+                    position: 'relative',
+                    zIndex: 1,
+                    boxShadow: '0 8px 24px rgba(232, 65, 10, 0.3)',
+                  }}>
+                    <Loader2 style={{ width: 28, height: 28, color: '#fff' }} className="animate-spin" />
+                  </div>
                 </div>
-              </div>
-              <div className="text-center flex flex-col gap-2">
-                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 14, fontWeight: 500, letterSpacing: 0.5 }}>
-                  AI 생성 <span style={{ fontStyle: 'italic', color: 'var(--accent)' }}>generating</span>
-                </p>
-                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.6 }}>
-                  더 많은 파일을 만들고 있습니다
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {[0, 1, 2].map(i => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 6, height: 6,
-                      background: 'var(--accent)',
-                      borderRadius: '50%',
-                      animation: `pulse 1.4s infinite`,
-                      animationDelay: `${i * 0.2}s`,
-                    }}
-                  />
-                ))}
+
+                {/* Text content */}
+                <div className="text-center flex flex-col gap-3">
+                  <div>
+                    <p style={{ 
+                      color: 'var(--txt)', 
+                      fontFamily: 'var(--mono-font)', 
+                      fontSize: 18, 
+                      fontWeight: 600, 
+                      letterSpacing: '-0.3px',
+                      lineHeight: 1.2,
+                    }}>
+                      AI가 생성 중입니다
+                    </p>
+                    <p style={{ 
+                      color: 'var(--accent)', 
+                      fontFamily: 'var(--mono-font)', 
+                      fontSize: 13, 
+                      fontStyle: 'italic',
+                      fontWeight: 500,
+                      marginTop: 4,
+                    }}>
+                      generating amazing code...
+                    </p>
+                  </div>
+                  <p style={{ 
+                    color: 'var(--txt-3)', 
+                    fontFamily: 'var(--mono-font)', 
+                    fontSize: 11, 
+                    lineHeight: 1.6,
+                    maxWidth: 240,
+                  }}>
+                    멋진 프로젝트를 만들고 있어요
+                  </p>
+                </div>
+
+                {/* Animated dots */}
+                <div className="flex gap-3" style={{ marginTop: 4 }}>
+                  {[0, 1, 2].map(i => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 8, height: 8,
+                        background: 'var(--accent)',
+                        borderRadius: '50%',
+                        animation: `wave 1.6s ease-in-out infinite`,
+                        animationDelay: `${i * 0.2}s`,
+                        boxShadow: '0 0 12px var(--accent)',
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           ) : previewSrc ? (
