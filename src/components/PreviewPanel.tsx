@@ -1,16 +1,44 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect, useMemo } from 'react'
 import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette } from 'lucide-react'
 
 interface Props {
   files: Record<string, string>
   previewVersion: number
   isLoading: boolean
-  swReady: boolean
 }
 
 type Tab = 'preview' | 'code'
 
-const PREVIEW_URL = `${import.meta.env.BASE_URL}preview/index.html`
+/** Inline CSS/JS files into a single self-contained HTML blob */
+function bundleFiles(files: Record<string, string>): string {
+  let html = files['index.html'] || ''
+
+  // inline <link rel="stylesheet" href="*.css">
+  html = html.replace(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+\.css)["'][^>]*\/?>/gi, (_m, href) => {
+    const key = href.replace(/^\.\//, '')
+    const css = files[key] || files['./' + key]
+    return css ? `<style>\n${css}\n</style>` : _m
+  })
+  html = html.replace(/<link[^>]+href=["']([^"']+\.css)["'][^>]+rel=["']stylesheet["'][^>]*\/?>/gi, (_m, href) => {
+    const key = href.replace(/^\.\//, '')
+    const css = files[key] || files['./' + key]
+    return css ? `<style>\n${css}\n</style>` : _m
+  })
+
+  // inline <script src="*.js">
+  html = html.replace(/<script([^>]+)src=["']([^"']+\.(js|mjs))["']([^>]*)><\/script>/gi, (_m, pre, src, _ext, post) => {
+    const key = src.replace(/^\.\//, '')
+    const js = files[key] || files['./' + key]
+    return js ? `<script${pre}${post}>\n${js}\n</script>` : _m
+  })
+
+  // Ensure Tailwind CDN if not already present
+  if (!html.includes('cdn.tailwindcss.com')) {
+    html = html.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
+  }
+
+  return html
+}
 
 function fileIcon(name: string) {
   if (name.endsWith('.css')) return <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: '#60a5fa' }} />
@@ -19,12 +47,13 @@ function fileIcon(name: string) {
   return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
 }
 
-export default function PreviewPanel({ files, previewVersion, isLoading, swReady }: Props) {
+export default function PreviewPanel({ files, previewVersion, isLoading }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeKey, setIframeKey] = useState(0)
+  const blobUrlRef = useRef<string>('')
 
   const fileNames = Object.keys(files).sort((a, b) => {
     const order = ['index.html']
@@ -38,6 +67,15 @@ export default function PreviewPanel({ files, previewVersion, isLoading, swReady
 
   const hasFiles = fileNames.length > 0
 
+  const blobUrl = useMemo(() => {
+    if (!hasFiles || !files['index.html']) return ''
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    const bundled = bundleFiles(files)
+    const url = URL.createObjectURL(new Blob([bundled], { type: 'text/html' }))
+    blobUrlRef.current = url
+    return url
+  }, [files])
+
   useEffect(() => {
     if (previewVersion > 0) setIframeKey(k => k + 1)
   }, [previewVersion])
@@ -45,6 +83,8 @@ export default function PreviewPanel({ files, previewVersion, isLoading, swReady
   useEffect(() => {
     if (hasFiles && !files[selectedFile]) setSelectedFile(fileNames[0])
   }, [files])
+
+  useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current) }, [])
 
   const selectedContent = files[selectedFile] || ''
   const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
@@ -54,7 +94,7 @@ export default function PreviewPanel({ files, previewVersion, isLoading, swReady
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
   const refresh = () => setIframeKey(k => k + 1)
-  const openNew = () => window.open(PREVIEW_URL, '_blank')
+  const openNew = () => { if (blobUrl) window.open(blobUrl, '_blank') }
 
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
@@ -86,7 +126,7 @@ export default function PreviewPanel({ files, previewVersion, isLoading, swReady
           </div>
         )}
 
-        {hasFiles && tab === 'preview' && (
+        {blobUrl && tab === 'preview' && (
           <>
             <button onClick={refresh}
               className="flex items-center justify-center w-7 h-7 rounded-md transition-all"
@@ -121,22 +161,15 @@ export default function PreviewPanel({ files, previewVersion, isLoading, swReady
       <div className="flex-1 relative overflow-hidden">
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
-          {hasFiles ? (
-            swReady ? (
-              <iframe
-                key={iframeKey}
-                ref={iframeRef}
-                src={PREVIEW_URL}
-                className="w-full h-full border-0"
-                allow="fullscreen"
-                title="Preview"
-              />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent)' }} />
-                <p className="text-xs" style={{ color: 'var(--txt-3)' }}>미리보기 준비 중...</p>
-              </div>
-            )
+          {blobUrl ? (
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              src={blobUrl}
+              className="w-full h-full border-0"
+              allow="fullscreen"
+              title="Preview"
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"

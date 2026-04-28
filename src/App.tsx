@@ -1,10 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Header from './components/Header'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe } from './services/ai'
 import type { Message } from './services/ai'
-import { useServiceWorker } from './hooks/useServiceWorker'
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -12,15 +11,6 @@ export default function App() {
   const projectFilesRef = useRef<Record<string, string>>({})
   const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const { ready: swReady, sendFiles } = useServiceWorker()
-
-  // SW 준비되면 현재 파일을 재전송해서 미리보기 복원
-  useEffect(() => {
-    if (!swReady) return
-    const files = projectFilesRef.current
-    if (Object.keys(files).length === 0) return
-    sendFiles(files).then(() => setPreviewVersion(v => v + 1)).catch(console.error)
-  }, [swReady])
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
   const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
@@ -88,11 +78,7 @@ export default function App() {
       if (Object.keys(files).length > 0) {
         projectFilesRef.current = files
         setProjectFiles(files)
-        if (swReady) {
-          await sendFiles(files).catch(console.error)
-          setPreviewVersion(v => v + 1)
-        }
-        // SW not ready yet → the swReady useEffect will handle it
+        setPreviewVersion(v => v + 1)
       }
       setMessages((prev) => {
         const updated = [...prev]
@@ -193,7 +179,7 @@ export default function App() {
           </>
         )}
 
-        <PreviewPanel files={projectFiles} previewVersion={previewVersion} isLoading={isLoading} swReady={swReady} />
+        <PreviewPanel files={projectFiles} previewVersion={previewVersion} isLoading={isLoading} />
       </div>
     </div>
   )
