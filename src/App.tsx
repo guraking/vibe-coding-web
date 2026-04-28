@@ -17,9 +17,12 @@ export default function App() {
   const [previewHtml, setPreviewHtml] = useState('')
   const [currentCode, setCurrentCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('vibe_api_key') ?? '')
+  // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
+  const envKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+  const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
   const [model, setModel] = useState(() => localStorage.getItem('vibe_model') ?? 'gpt-4o')
   const bufferRef = useRef('')
+  const isEnvKey = Boolean(envKey?.trim())
 
   const handleApiKeyChange = (key: string) => {
     setApiKey(key)
@@ -77,7 +80,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#1e1e1e', color: '#cccccc' }}>
-      <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} />
+      <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} isEnvKey={isEnvKey} />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col items-center py-1 flex-shrink-0" style={{ width: 48, background: '#333333', borderRight: '1px solid #252526' }}>
           {activityIcons.map((item) => (

@@ -6,9 +6,10 @@ interface Props {
   model: string
   onApiKeyChange: (key: string) => void
   onModelChange: (model: string) => void
+  isEnvKey?: boolean
 }
 
-export default function Header({ apiKey, model, onApiKeyChange, onModelChange }: Props) {
+export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -66,16 +67,18 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange }:
           </select>
 
           <button
-            onClick={openModal}
+            onClick={isEnvKey ? undefined : openModal}
             className="flex items-center gap-1 text-xs px-2.5 py-0.5 transition-colors"
             style={{
               background: apiKey ? 'rgba(78,201,176,0.15)' : 'rgba(244,71,71,0.15)',
               color: apiKey ? '#4ec9b0' : '#f44747',
               border: `1px solid ${apiKey ? '#4ec9b040' : '#f4474740'}`,
+              cursor: isEnvKey ? 'default' : 'pointer',
             }}
+            title={isEnvKey ? '.env.local에서 로드됨' : undefined}
           >
             <span>{apiKey ? '●' : '○'}</span>
-            <span>{apiKey ? 'API 연결됨' : 'API 키 없음'}</span>
+            <span>{apiKey ? (isEnvKey ? '.env 키 로드됨' : 'API 연결됨') : 'API 키 없음'}</span>
           </button>
         </div>
       </header>
@@ -107,9 +110,14 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange }:
             </div>
 
             <div className="p-4">
-              <p className="text-xs mb-3" style={{ color: '#6a9955' }}>
-                {/* VS Code comment style */}
-                {'// 키는 브라우저 localStorage에만 저장됩니다.'}
+              <p className="text-xs mb-2 font-mono" style={{ color: '#6a9955' }}>
+                {'// 방법 1 (권장): .env.local 파일에 키를 설정하세요'}
+              </p>
+              <div className="mb-3 px-3 py-2 text-xs font-mono" style={{ background: '#1e1e1e', color: '#ce9178', border: '1px solid #3c3c3c' }}>
+                VITE_OPENAI_API_KEY=sk-...
+              </div>
+              <p className="text-xs mb-3 font-mono" style={{ color: '#6a9955' }}>
+                {'// 방법 2: 아래에 직접 입력 (localStorage에 저장됩니다)'}
               </p>
               <input
                 type="password"
