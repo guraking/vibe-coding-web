@@ -24,6 +24,13 @@ function isValidGeneratedProject(files: Record<string, string>, projectType: 'ht
   return Boolean(files['package.json']) && hasMain && Boolean(files['src/App.vue'])
 }
 
+function fingerprintFiles(files: Record<string, string>): string {
+  const names = Object.keys(files).sort()
+  return names.map((name) => `${name}:${files[name]?.length ?? 0}`).join('|')
+}
+
+const REALTIME_PATCH_THROTTLE_MS = 150
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
@@ -68,6 +75,14 @@ export default function App() {
     gemini: pickInitialModel('gemini'),
   }))
   const bufferRef = useRef('')
+  const lastRealtimePatchRef = useRef('')
+  const lastRealtimePatchAtRef = useRef(0)
+  const realtimePatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRealtimePatchRef = useRef<{
+    files: Record<string, string>
+    projectType: 'html' | 'react' | 'vue'
+    fingerprint: string
+  } | null>(null)
   const isEnvKeyByProvider: Record<AIProvider, boolean> = {
     groq: Boolean(envKeys.groq),
     openai: Boolean(envKeys.openai),
@@ -103,6 +118,34 @@ export default function App() {
     document.body.style.userSelect = ''
   }, [])
 
+  const applyRealtimePatch = useCallback((
+    files: Record<string, string>,
+    pType: 'html' | 'react' | 'vue',
+    fingerprint: string,
+  ) => {
+    lastRealtimePatchRef.current = fingerprint
+    lastRealtimePatchAtRef.current = Date.now()
+    projectFilesRef.current = files
+    setProjectFiles(files)
+    setProjectType(pType)
+  }, [])
+
+  const flushPendingRealtimePatch = useCallback(() => {
+    const pending = pendingRealtimePatchRef.current
+    if (!pending) return
+    pendingRealtimePatchRef.current = null
+    applyRealtimePatch(pending.files, pending.projectType, pending.fingerprint)
+  }, [applyRealtimePatch])
+
+  useEffect(() => {
+    return () => {
+      if (realtimePatchTimerRef.current) {
+        clearTimeout(realtimePatchTimerRef.current)
+        realtimePatchTimerRef.current = null
+      }
+    }
+  }, [])
+
   const handleApiKeyChange = (targetProvider: AIProvider, key: string) => {
     setApiKeys((prev) => ({ ...prev, [targetProvider]: key }))
     localStorage.setItem(`vibe_api_key_${targetProvider}`, key)
@@ -125,18 +168,53 @@ export default function App() {
     setMessages(history)
     setIsLoading(true)
     bufferRef.current = ''
+    lastRealtimePatchRef.current = ''
+    lastRealtimePatchAtRef.current = 0
+    pendingRealtimePatchRef.current = null
+    if (realtimePatchTimerRef.current) {
+      clearTimeout(realtimePatchTimerRef.current)
+      realtimePatchTimerRef.current = null
+    }
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
     try {
       for await (const chunk of streamCode(provider, activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
         bufferRef.current += chunk
-        const { explanation } = parseVibe(bufferRef.current)
+        const parsedChunk = parseVibe(bufferRef.current)
+        const { explanation } = parsedChunk
+
+        // Realtime patch: reflect generated files in Code tab while streaming.
+        if (Object.keys(parsedChunk.files).length > 0) {
+          const nextFingerprint = fingerprintFiles(parsedChunk.files)
+          if (nextFingerprint !== lastRealtimePatchRef.current) {
+            const elapsed = Date.now() - lastRealtimePatchAtRef.current
+            if (elapsed >= REALTIME_PATCH_THROTTLE_MS) {
+              applyRealtimePatch(parsedChunk.files, parsedChunk.projectType, nextFingerprint)
+            } else {
+              pendingRealtimePatchRef.current = {
+                files: parsedChunk.files,
+                projectType: parsedChunk.projectType,
+                fingerprint: nextFingerprint,
+              }
+              if (!realtimePatchTimerRef.current) {
+                const wait = Math.max(0, REALTIME_PATCH_THROTTLE_MS - elapsed)
+                realtimePatchTimerRef.current = setTimeout(() => {
+                  realtimePatchTimerRef.current = null
+                  flushPendingRealtimePatch()
+                }, wait)
+              }
+            }
+          }
+        }
+
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: explanation || '생성 중...', files: {} }
           return updated
         })
       }
+
+      flushPendingRealtimePatch()
 
       let parsed = parseVibe(bufferRef.current)
 
@@ -197,6 +275,11 @@ export default function App() {
         return updated
       })
     } catch (err: unknown) {
+      pendingRealtimePatchRef.current = null
+      if (realtimePatchTimerRef.current) {
+        clearTimeout(realtimePatchTimerRef.current)
+        realtimePatchTimerRef.current = null
+      }
       if (provider === 'groq' && err instanceof RateLimitError) {
         setRetryAt(Date.now() + err.retryAfterSeconds * 1000)
         setMessages((prev) => {
@@ -217,6 +300,11 @@ export default function App() {
         })
       }
     } finally {
+      pendingRealtimePatchRef.current = null
+      if (realtimePatchTimerRef.current) {
+        clearTimeout(realtimePatchTimerRef.current)
+        realtimePatchTimerRef.current = null
+      }
       setIsLoading(false)
     }
   }
