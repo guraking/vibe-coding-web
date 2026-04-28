@@ -293,7 +293,7 @@ export async function* streamCode(
       ],
       stream: true,
       ...(provider === 'openai' ? {} : { temperature: 0.7 }),
-      ...(provider === 'openai' ? { max_completion_tokens: 4096 } : { max_tokens: 4096 }),
+      ...(provider === 'groq' ? { max_tokens: 4096 } : {}),
       ...(provider === 'openai' ? { stream_options: { include_usage: true } } : {}),
     }),
   })
