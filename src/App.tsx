@@ -181,7 +181,18 @@ export default function App() {
           </>
         )}
 
-        <PreviewPanel files={projectFiles} projectType={projectType} previewVersion={previewVersion} isLoading={isLoading} />
+        <PreviewPanel
+          files={projectFiles}
+          projectType={projectType}
+          previewVersion={previewVersion}
+          isLoading={isLoading}
+          onImport={(importedFiles, importedType) => {
+            projectFilesRef.current = importedFiles
+            setProjectFiles(importedFiles)
+            setProjectType(importedType)
+            setPreviewVersion(v => v + 1)
+          }}
+        />
       </div>
     </div>
   )

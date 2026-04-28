@@ -1,12 +1,14 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2 } from 'lucide-react'
 import ExportModal from './ExportModal'
+import ImportModal from './ImportModal'
 
 interface Props {
   files: Record<string, string>
   projectType: 'html' | 'react' | 'vue'
   previewVersion: number
   isLoading: boolean
+  onImport: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue') => void
 }
 
 type Tab = 'preview' | 'code'
@@ -43,7 +45,7 @@ function fileIcon(name: string) {
   return <FileCode2 style={{ width: 12, height: 12, color: 'var(--ok)' }} className="shrink-0" />
 }
 
-export default function PreviewPanel({ files, projectType, previewVersion, isLoading }: Props) {
+export default function PreviewPanel({ files, projectType, previewVersion, isLoading, onImport }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
@@ -51,6 +53,7 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   const [iframeKey, setIframeKey] = useState(0)
   const blobUrlRef = useRef<string>('')
   const [showExport, setShowExport] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [githubRepo, setGithubRepo] = useState<{ owner: string; repo: string } | null>(null)
 
   const fileNames = Object.keys(files).sort((a, b) => {
@@ -112,6 +115,14 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
     setIframeKey(k => k + 1)
   }
 
+  const handleImportSuccess = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string) => {
+    setShowImport(false)
+    setGithubRepo({ owner, repo })
+    onImport(importedFiles, importedType)
+    setTab('preview')
+    setIframeKey(k => k + 1)
+  }
+
   // What to show in preview iframe
   const previewSrc = sandboxUrl ? sandboxUrl : blobUrl
 
@@ -155,6 +166,17 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
             generating...
           </div>
         )}
+
+        {/* GitHub import button */}
+        <button onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 transition-all"
+          style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
+          title="Import from GitHub">
+          <FolderGit2 style={{ width: 12, height: 12 }} />
+          <span>import</span>
+        </button>
 
         {/* GitHub export button */}
         {hasFiles && (
@@ -380,6 +402,14 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
           files={files}
           onClose={() => setShowExport(false)}
           onSuccess={handleExportSuccess}
+        />
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onSuccess={handleImportSuccess}
         />
       )}
     </div>
