@@ -6,6 +6,7 @@ interface Props {
   onSend: (prompt: string) => void
   isLoading: boolean
   hasApiKey: boolean
+  width?: number
 }
 
 const SUGGESTIONS = [
@@ -29,7 +30,7 @@ function Spinner() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey }: Props) {
+export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width }: Props) {
   const [input, setInput] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -57,7 +58,7 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey }: Pr
   }
 
   return (
-    <div className="flex flex-col flex-shrink-0" style={{ width: 340, minWidth: 260, borderRight: "1px solid #3c3c3c", background: "#252526" }}>
+    <div className="flex flex-col flex-shrink-0" style={{ width: width ?? 340, minWidth: 200, maxWidth: '60vw', borderRight: "1px solid #3c3c3c", background: "#252526" }}>
       <div className="flex items-center justify-between px-3 flex-shrink-0 uppercase tracking-widest text-[10px] font-semibold" style={{ height: 36, color: "#bbb", borderBottom: "1px solid #1e1e1e" }}>
         <span>CHAT</span>
         {messages.length > 0 && (

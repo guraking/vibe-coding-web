@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Header from './components/Header'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
@@ -20,9 +20,36 @@ export default function App() {
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
   const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
-  const [model, setModel] = useState(() => localStorage.getItem('vibe_model') ?? 'gpt-4o')
+  const [model, setModel] = useState(() => localStorage.getItem('vibe_model') ?? 'llama-3.3-70b-versatile')
   const bufferRef = useRef('')
   const isEnvKey = Boolean(envKey?.trim())
+
+  // 드래그 리사이저
+  const [chatWidth, setChatWidth] = useState(340)
+  const isDragging = useRef(false)
+  const startX = useRef(0)
+  const startWidth = useRef(0)
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true
+    startX.current = e.clientX
+    startWidth.current = chatWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [chatWidth])
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current) return
+    const delta = e.clientX - startX.current
+    const next = Math.max(200, Math.min(startWidth.current + delta, window.innerWidth * 0.6))
+    setChatWidth(next)
+  }, [])
+
+  const onMouseUp = useCallback(() => {
+    isDragging.current = false
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }, [])
 
   const handleApiKeyChange = (key: string) => {
     setApiKey(key)
@@ -79,7 +106,13 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#1e1e1e', color: '#cccccc' }}>
+    <div
+      className="flex flex-col h-screen overflow-hidden"
+      style={{ background: '#1e1e1e', color: '#cccccc' }}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+    >
       <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} isEnvKey={isEnvKey} />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col items-center py-1 flex-shrink-0" style={{ width: 48, background: '#333333', borderRight: '1px solid #252526' }}>
@@ -96,7 +129,20 @@ export default function App() {
             </button>
           ))}
         </div>
-        <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} />
+        <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} />
+        {/* 드래그 핸들 */}
+        <div
+          onMouseDown={onMouseDown}
+          style={{
+            width: 4,
+            flexShrink: 0,
+            background: isDragging.current ? '#007acc' : 'transparent',
+            cursor: 'col-resize',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#007acc')}
+          onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
+        />
         <PreviewPanel html={previewHtml} code={currentCode} isLoading={isLoading} />
       </div>
     </div>
