@@ -416,19 +416,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                     opacity: 0.4,
                     animation: 'pulse-scale 2s ease-in-out infinite',
                   }} />
-                  
-                  {/* Center icon */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 56, height: 56,
-                    background: 'var(--accent)',
-                    borderRadius: 12,
-                    position: 'relative',
-                    zIndex: 1,
-                    boxShadow: '0 8px 24px rgba(232, 65, 10, 0.3)',
-                  }}>
-                    <Loader2 style={{ width: 28, height: 28, color: '#fff' }} className="animate-spin" />
-                  </div>
                 </div>
 
                 {/* Text content */}
