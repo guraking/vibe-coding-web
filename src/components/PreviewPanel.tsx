@@ -35,12 +35,12 @@ function bundleFiles(files: Record<string, string>): string {
 }
 
 function fileIcon(name: string) {
-  if (name.endsWith('.css')) return <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: '#60a5fa' }} />
-  if (name.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 shrink-0" style={{ color: '#fbbf24' }} />
-  if (name.endsWith('.vue')) return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#42d392' }} />
+  if (name.endsWith('.css')) return <Palette style={{ width: 12, height: 12, color: '#60a5fa' }} className="shrink-0" />
+  if (name.endsWith('.json')) return <FileJson style={{ width: 12, height: 12, color: '#fbbf24' }} className="shrink-0" />
+  if (name.endsWith('.vue')) return <FileCode2 style={{ width: 12, height: 12, color: '#42d392' }} className="shrink-0" />
   if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.jsx') || name.endsWith('.tsx'))
-    return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#f59e0b' }} />
-  return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
+    return <FileText style={{ width: 12, height: 12, color: '#f59e0b' }} className="shrink-0" />
+  return <FileCode2 style={{ width: 12, height: 12, color: 'var(--ok)' }} className="shrink-0" />
 }
 
 export default function PreviewPanel({ files, projectType, previewVersion, isLoading }: Props) {
@@ -117,14 +117,24 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
 
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
-      className="flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-medium transition-all"
-      style={tab === id ? { background: 'var(--bg-hover)', color: 'var(--txt)' } : { color: 'var(--txt-3)' }}
-      onMouseEnter={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt-2)' }}
-      onMouseLeave={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt-3)' }}>
-      <Icon className="w-3.5 h-3.5" />
+      className="flex items-center gap-1.5 transition-all"
+      style={{
+        height: 36,
+        padding: '0 12px',
+        fontFamily: 'var(--mono-font)',
+        fontSize: 11,
+        background: 'transparent',
+        border: 'none',
+        borderBottom: tab === id ? '2px solid var(--accent)' : '2px solid transparent',
+        color: tab === id ? 'var(--txt)' : 'var(--txt-2)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt)' }}
+      onMouseLeave={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt-2)' }}>
+      <Icon style={{ width: 12, height: 12 }} />
       <span>{label}</span>
       {id === 'preview' && isLoading && (
-        <Loader2 className="w-3 h-3 animate-spin ml-1" style={{ color: 'var(--accent)' }} />
+        <Loader2 style={{ width: 10, height: 10, marginLeft: 4, color: 'var(--accent)' }} className="animate-spin" />
       )}
     </button>
   )
@@ -132,61 +142,64 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   return (
     <div className="flex flex-col flex-1 min-w-0" style={{ background: 'var(--bg)' }}>
       {/* Tab bar */}
-      <div className="flex items-center h-11 px-2 gap-1 flex-shrink-0"
-        style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        <TabBtn id="preview" icon={Eye} label="미리보기" />
-        <TabBtn id="code" icon={Code2} label={`코드${hasFiles ? ` (${fileNames.length})` : ''}`} />
+      <div className="flex items-center flex-shrink-0"
+        style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 36 }}>
+        <TabBtn id="preview" icon={Eye} label="preview" />
+        <TabBtn id="code" icon={Code2} label={`code${hasFiles ? ` [${fileNames.length}]` : ''}`} />
         <div className="flex-1" />
 
         {isLoading && (
-          <div className="flex items-center gap-1.5 text-xs mr-2" style={{ color: 'var(--accent)' }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-            생성 중...
+          <div className="flex items-center gap-1.5 mr-2"
+            style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+            <span className="w-1.5 h-1.5 animate-pulse" style={{ background: 'var(--accent)', display: 'inline-block' }} />
+            generating...
           </div>
         )}
 
         {/* GitHub export button */}
         {hasFiles && (
           <button onClick={() => setShowExport(true)}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
+            className="flex items-center gap-1.5 transition-all"
             style={githubRepo
-              ? { color: 'var(--ok)', background: 'var(--ok-bg)' }
-              : { color: 'var(--txt-3)' }}
-            onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-            onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' } }}
-            title="GitHub에 내보내기">
-            <GitFork className="w-3.5 h-3.5" />
-            <span>{githubRepo ? `${githubRepo.owner}/${githubRepo.repo}` : 'GitHub'}</span>
+              ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', border: '1px solid var(--ok-bd)', cursor: 'pointer' }
+              : { color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
+            onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' } }}
+            title="Export to GitHub">
+            <GitFork style={{ width: 12, height: 12 }} />
+            <span>{githubRepo ? `${githubRepo.owner}/${githubRepo.repo}` : 'github'}</span>
           </button>
         )}
 
         {previewSrc && tab === 'preview' && (
           <>
             <button onClick={refresh}
-              className="flex items-center justify-center w-7 h-7 rounded-md transition-all"
-              style={{ color: 'var(--txt-3)' }}
+              className="flex items-center justify-center transition-all"
+              style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}
-              title="새로고침">
-              <RefreshCw className="w-3.5 h-3.5" />
+              title="Refresh">
+              <RefreshCw style={{ width: 12, height: 12 }} />
             </button>
             <button onClick={openNew}
-              className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
-              style={{ color: 'var(--txt-3)' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}>
-              <ExternalLink className="w-3.5 h-3.5" /><span>새 탭</span>
+              className="flex items-center gap-1.5 transition-all"
+              style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' }}>
+              <ExternalLink style={{ width: 12, height: 12 }} /><span>open</span>
             </button>
           </>
         )}
         {hasFiles && tab === 'code' && (
           <button onClick={copyFile}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
-            style={copied ? { color: 'var(--ok)', background: 'var(--ok-bg)' } : { color: 'var(--txt-3)' }}
-            onMouseEnter={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-            onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' } }}>
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? '복사됨' : '복사'}</span>
+            className="flex items-center gap-1.5 transition-all"
+            style={copied
+              ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', border: 'none', cursor: 'pointer' }
+              : { color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
+            onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}>
+            {copied ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
+            <span>{copied ? 'copied!' : 'copy'}</span>
           </button>
         )}
       </div>
@@ -201,52 +214,62 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
           ) : hasFiles && (projectType === 'react' || projectType === 'vue') ? (
             /* React / Vue project — needs GitHub export */
             <div className="flex-1 flex flex-col items-center justify-center gap-5">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
-                <GitFork className="w-7 h-7" style={{ color: 'var(--accent)' }} />
+              <div style={{
+                width: 56, height: 56,
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--accent-bd)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <GitFork style={{ width: 24, height: 24, color: 'var(--accent)' }} />
               </div>
-              <div className="text-center space-y-2">
-                <p className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>
-                  {projectType === 'vue' ? 'Vue' : 'React'} 프로젝트 생성됨
+              <div className="text-center">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12, marginBottom: 8 }}>
+                  {projectType === 'vue' ? 'vue' : 'react'} project generated
                 </p>
-                <p className="text-xs max-w-64 leading-relaxed" style={{ color: 'var(--txt-3)' }}>
-                  {projectType === 'vue' ? 'Vue' : 'React'} 앱은 빌드 단계가 필요합니다.<br />
-                  GitHub에 저장하면 StackBlitz가 즉시 실행합니다.
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.7, maxWidth: 260 }}>
+                  {projectType === 'vue' ? 'Vue' : 'React'} requires a build step.<br />
+                  Export to GitHub → StackBlitz runs it instantly.
                 </p>
               </div>
               <button
                 onClick={() => setShowExport(true)}
-                className="flex items-center gap-2 h-10 px-6 rounded-xl text-sm font-medium"
-                style={{ background: 'var(--accent)', color: '#fff' }}>
-                <GitFork className="w-4 h-4" /> GitHub에 저장 후 미리보기
+                className="flex items-center gap-2 transition-colors"
+                style={{ background: 'var(--accent)', color: '#fff', fontFamily: 'var(--mono-font)', fontSize: 11, padding: '8px 20px', border: 'none', cursor: 'pointer' }}>
+                <GitFork style={{ width: 14, height: 14 }} /> push to github &amp; preview
               </button>
-              <div className="flex flex-wrap gap-2 justify-center max-w-72">
+              <div className="flex flex-wrap gap-1.5 justify-center" style={{ maxWidth: 280 }}>
                 {fileNames.slice(0, 6).map(name => (
-                  <span key={name} className="text-xs px-2 py-0.5 rounded-md font-mono"
-                    style={{ background: 'var(--bg-panel)', color: 'var(--txt-3)', border: '1px solid var(--border-s)' }}>
+                  <span key={name} style={{ background: 'var(--bg-panel)', color: 'var(--txt-3)', border: '1px solid var(--border-s)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 8px' }}>
                     {name}
                   </span>
                 ))}
                 {fileNames.length > 6 && (
-                  <span className="text-xs px-2 py-0.5 rounded-md" style={{ color: 'var(--txt-3)' }}>
-                    +{fileNames.length - 6}개
+                  <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                    +{fileNames.length - 6} more
                   </span>
                 )}
               </div>
             </div>
           ) : (
             /* Empty state */
-            <div className="flex-1 flex flex-col items-center justify-center gap-6">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)' }}>
-                <FileCode2 className="w-6 h-6" style={{ color: 'var(--txt-3)' }} />
+            <div className="flex-1 flex flex-col items-center justify-center gap-5">
+              <div style={{
+                width: 48, height: 48,
+                background: 'var(--bg-panel)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <FileCode2 style={{ width: 22, height: 22, color: 'var(--txt-3)' }} />
               </div>
-              <div className="text-center space-y-1.5">
-                <p className="text-sm font-semibold" style={{ color: 'var(--txt-2)' }}>아직 생성된 화면이 없습니다</p>
-                <p className="text-xs" style={{ color: 'var(--txt-3)' }}>왼쪽 채팅에서 만들고 싶은 것을 설명하세요</p>
+              <div className="text-center">
+                <p style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11, marginBottom: 6 }}>
+                  no output yet
+                </p>
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                  describe what to build in the chat panel
+                </p>
               </div>
-              <div className="px-4 py-3 rounded-xl font-mono text-xs leading-relaxed"
-                style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)' }}>
+              <div className="px-4 py-3" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.8 }}>
                 <div>
                   <span style={{ color: '#c084fc' }}>const </span>
                   <span style={{ color: 'var(--accent)' }}>app </span>
@@ -274,14 +297,16 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
             <>
               <div className="flex flex-col flex-shrink-0 overflow-y-auto"
                 style={{ width: 160, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}>
-                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider select-none"
-                  style={{ color: 'var(--txt-3)' }}>파일</div>
+                <div className="px-3 py-2 select-none"
+                  style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9, letterSpacing: '0.1em', borderBottom: '1px solid var(--border-s)' }}>
+                  FILES
+                </div>
                 {fileNames.map(name => (
                   <button key={name} onClick={() => setSelectedFile(name)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs text-left w-full transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-left w-full transition-colors"
                     style={selectedFile === name
-                      ? { background: 'var(--accent-bg)', color: 'var(--txt)', borderRight: '2px solid var(--accent)' }
-                      : { color: 'var(--txt-2)', borderRight: '2px solid transparent' }}
+                      ? { background: 'var(--accent-bg)', color: 'var(--txt)', borderRight: '2px solid var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }
+                      : { color: 'var(--txt-2)', borderRight: '2px solid transparent', fontFamily: 'var(--mono-font)', fontSize: 10 }}
                     onMouseEnter={e => { if (selectedFile !== name) e.currentTarget.style.background = 'var(--bg-hover)' }}
                     onMouseLeave={e => { if (selectedFile !== name) e.currentTarget.style.background = 'transparent' }}>
                     {fileIcon(name)}
@@ -296,12 +321,12 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
                       <tr key={i} className="transition-colors"
                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-panel)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                        <td className="text-right text-xs font-mono select-none align-top py-px pl-4 pr-4"
-                          style={{ color: 'var(--txt-3)', borderRight: '1px solid var(--border-s)', minWidth: '3rem' }}>
+                        <td className="text-right select-none align-top py-px pl-4 pr-4"
+                          style={{ color: 'var(--txt-3)', borderRight: '1px solid var(--border-s)', minWidth: '3rem', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
                           {i + 1}
                         </td>
-                        <td className="text-xs font-mono align-top py-px pl-4 pr-8 whitespace-pre-wrap break-all"
-                          style={{ color: 'var(--txt-2)' }}>
+                        <td className="align-top py-px pl-4 pr-8 whitespace-pre-wrap break-all"
+                          style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
                           {line || ' '}
                         </td>
                       </tr>
@@ -311,16 +336,17 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center w-full h-full text-xs" style={{ color: 'var(--txt-3)' }}>
-              아직 생성된 코드가 없습니다
+            <div className="flex items-center justify-center w-full h-full"
+              style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
+              no code generated yet
             </div>
           )}
         </div>
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between px-4 h-6 flex-shrink-0 text-xs select-none"
-        style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', color: 'var(--txt-3)' }}>
+      <div className="flex items-center justify-between px-4 flex-shrink-0 select-none"
+        style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', height: 24, color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--txt-2)' }}>vibe-coding-web</span>
           {hasFiles && (
@@ -330,21 +356,21 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
                 {tab === 'code' ? selectedFile : 'index.html'}
               </span>
               {(projectType === 'react' || projectType === 'vue') && (
-                <span className="px-1.5 py-px rounded text-xs" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: '10px' }}>
-                  {projectType === 'vue' ? 'Vue' : 'React'}
+                <span style={{ background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: 9, padding: '1px 6px', border: '1px solid var(--accent-bd)' }}>
+                  {projectType === 'vue' ? 'vue' : 'react'}
                 </span>
               )}
             </>
           )}
           {isLoading && (
             <span className="flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-              <Loader2 className="w-2.5 h-2.5 animate-spin" /> 생성 중
+              <Loader2 style={{ width: 10, height: 10 }} className="animate-spin" /> generating
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           <span>UTF-8</span>
-          {hasFiles && <span>{fileNames.length}개 파일 · {totalLines} lines</span>}
+          {hasFiles && <span>{fileNames.length} files · {totalLines} lines</span>}
         </div>
       </div>
 

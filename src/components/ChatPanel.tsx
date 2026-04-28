@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, Bot, User, AlertCircle, ChevronRight, Loader2 } from 'lucide-react'
+import { Send, RotateCcw, AlertCircle, Loader2, Terminal } from 'lucide-react'
 import type { Message } from '../services/ai'
 
 interface Props {
@@ -11,22 +11,22 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  '투두 앱 만들어줘',
-  '쇼핑몰 랜딩 페이지',
-  '날씨 위젯 만들어줘',
-  '음악 플레이어 UI',
-  '대시보드 만들어줘',
-  '로그인 화면 만들어줘',
-  '계산기 앱 만들어줘',
-  '포트폴리오 페이지',
+  { label: 'todo-app', desc: '투두 앱 만들어줘' },
+  { label: 'shop-landing', desc: '쇼핑몰 랜딩 페이지' },
+  { label: 'weather-widget', desc: '날씨 위젯 만들어줘' },
+  { label: 'music-player', desc: '음악 플레이어 UI' },
+  { label: 'dashboard', desc: '대시보드 만들어줘' },
+  { label: 'login-screen', desc: '로그인 화면 만들어줘' },
+  { label: 'calculator', desc: '계산기 앱 만들어줘' },
+  { label: 'portfolio', desc: '포트폴리오 페이지' },
 ]
 
 function Dots() {
   return (
     <span className="inline-flex gap-1 items-center">
       {[0, 150, 300].map(d => (
-        <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
-          style={{ background: 'var(--txt-3)', animationDelay: `${d}ms`, animationDuration: '1s' }} />
+        <span key={d} className="w-1 h-1 animate-bounce"
+          style={{ background: 'var(--accent)', animationDelay: `${d}ms`, animationDuration: '1s' }} />
       ))}
     </span>
   )
@@ -60,22 +60,30 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
 
   return (
     <div className="flex flex-col flex-shrink-0"
-      style={{ width: width ?? 340, minWidth: 220, maxWidth: '60vw', background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}>
+      style={{
+        width: width ?? 340,
+        minWidth: 220,
+        maxWidth: '60vw',
+        background: 'var(--bg-panel)',
+      }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 h-11 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--border-s)' }}>
+      {/* Section header */}
+      <div className="flex items-center justify-between px-4 flex-shrink-0"
+        style={{ height: 36, borderBottom: '1px solid var(--border-s)' }}>
         <div className="flex items-center gap-2">
-          <Bot className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>AI Chat</span>
+          <Terminal style={{ width: 12, height: 12, color: 'var(--accent)' }} />
+          <span style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
+            agent / chat
+          </span>
         </div>
         {messages.length > 0 && (
           <button onClick={() => window.location.reload()}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-colors"
-            style={{ color: 'var(--txt-3)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt-2)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--txt-3)' }}>
-            <RotateCcw className="w-3 h-3" /><span>새 대화</span>
+            className="flex items-center gap-1.5 transition-colors"
+            style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'none' }}>
+            <RotateCcw style={{ width: 10, height: 10 }} />
+            <span>new session</span>
           </button>
         )}
       </div>
@@ -83,68 +91,91 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {messages.length === 0 ? (
-          <div className="flex flex-col h-full px-3 py-4">
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 pb-4">
-              <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
-                <Bot className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+          <div className="flex flex-col h-full">
+            {/* Empty state */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
+              <div style={{
+                width: 40, height: 40,
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--accent-bd)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Terminal style={{ width: 18, height: 18, color: 'var(--accent)' }} />
               </div>
-              <div className="text-center space-y-1">
-                <p className="text-sm font-semibold" style={{ color: 'var(--txt)' }}>무엇을 만들까요?</p>
-                <p className="text-xs" style={{ color: 'var(--txt-3)' }}>아이디어를 설명하면 바로 만들어드립니다</p>
+              <div className="text-center">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 11, marginBottom: 4 }}>
+                  What do you want to build?
+                </p>
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                  Describe your idea and AI will code it instantly
+                </p>
               </div>
             </div>
-            <div className="space-y-1">
+
+            {/* Suggestions */}
+            <div className="px-3 pb-3 space-y-1">
+              <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '6px 4px 4px' }}>
+                # quick start
+              </p>
               {SUGGESTIONS.map(s => (
-                <button key={s}
-                  onClick={() => { setInput(s); taRef.current?.focus() }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs text-left transition-all group"
-                  style={{ color: 'var(--txt-2)', background: 'var(--bg-card)', border: '1px solid var(--border-s)' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; e.currentTarget.style.color = 'var(--txt)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--txt-2)' }}>
-                  <ChevronRight className="w-3 h-3 flex-shrink-0 transition-colors" style={{ color: 'var(--txt-3)' }} />
-                  {s}
+                <button key={s.label}
+                  onClick={() => { setInput(s.desc); taRef.current?.focus() }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left transition-all"
+                  style={{
+                    color: 'var(--txt-2)',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-s)',
+                    fontFamily: 'var(--mono-font)',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-s)'; e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-card)' }}>
+                  <span style={{ color: 'var(--accent)', fontSize: 10 }}>&gt;_</span>
+                  <span style={{ color: 'var(--ok)', fontSize: 10 }}>{s.label}</span>
+                  <span style={{ color: 'var(--txt-3)', fontSize: 10 }}>—</span>
+                  <span style={{ fontSize: 10 }}>{s.desc}</span>
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 p-4">
+          <div className="flex flex-col p-3 gap-2">
             {messages.map((msg, i) => (
               msg.role === 'user' ? (
-                <div key={i} className="flex justify-end">
-                  <div className="flex items-end gap-2 max-w-[88%]">
-                    <div className="px-3.5 py-2.5 rounded-2xl rounded-br-sm text-xs leading-relaxed"
-                      style={{ background: 'var(--accent)', color: 'white' }}>
+                /* User message — terminal input style */
+                <div key={i} className="flex flex-col">
+                  <div className="flex items-start gap-2 px-3 py-2.5"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-s)' }}>
+                    <span style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10, flexShrink: 0, paddingTop: 1 }}>
+                      &gt;
+                    </span>
+                    <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.6, wordBreak: 'break-word' }}>
                       {msg.content}
-                    </div>
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mb-0.5"
-                      style={{ background: 'var(--bg-hover)' }}>
-                      <User className="w-3 h-3" style={{ color: 'var(--txt-2)' }} />
-                    </div>
+                    </p>
                   </div>
                 </div>
               ) : (
-                <div key={i} className="flex items-start gap-2.5">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
-                    <Bot className="w-3 h-3" style={{ color: 'var(--accent)' }} />
-                  </div>
-                  <div className="flex-1 min-w-0 pt-0.5">
+                /* AI message — log output style */
+                <div key={i} className="flex flex-col">
+                  <div className="px-3 py-1" style={{ borderLeft: '2px solid var(--accent-bd)' }}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>AI</span>
+                      <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+                        {new Date().toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                     {msg.content
-                      ? <p className="text-xs leading-relaxed" style={{ color: 'var(--txt-2)' }}>{msg.content}</p>
+                      ? <p style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.65 }}>{msg.content}</p>
                       : <Dots />}
                   </div>
                 </div>
               )
             ))}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex items-start gap-2.5">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)' }}>
-                  <Bot className="w-3 h-3" style={{ color: 'var(--accent)' }} />
+              <div className="px-3 py-1" style={{ borderLeft: '2px solid var(--accent-bd)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>AI</span>
                 </div>
-                <div className="flex-1 pt-1.5"><Dots /></div>
+                <Dots />
               </div>
             )}
             <div ref={bottomRef} />
@@ -155,39 +186,56 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
       {/* Input */}
       <div className="flex-shrink-0 p-3" style={{ borderTop: '1px solid var(--border)' }}>
         {!hasApiKey && (
-          <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-xs"
-            style={{ background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)' }}>
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-            API 키를 먼저 설정하세요
+          <div className="flex items-center gap-2 px-3 py-2 mb-2"
+            style={{ background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+            <AlertCircle style={{ width: 12, height: 12, flexShrink: 0 }} />
+            API key not configured — click Settings to add
           </div>
         )}
-        <div className="rounded-xl overflow-hidden transition-all"
+        <div className="overflow-hidden transition-all"
           style={{
             background: 'var(--bg-card)',
             border: `1px solid ${input ? 'var(--accent-bd)' : 'var(--border)'}`,
-            boxShadow: input ? '0 0 0 3px var(--accent-bg)' : 'none',
+            boxShadow: input ? '0 0 0 2px var(--accent-bg)' : 'none',
           }}>
-          <textarea ref={taRef} value={input}
-            onChange={onInput} onKeyDown={onKey}
-            placeholder={hasApiKey ? '무엇을 만들까요? (Enter로 전송)' : 'API 키를 설정해주세요'}
-            disabled={!hasApiKey || isLoading} rows={2}
-            className="w-full bg-transparent resize-none focus:outline-none disabled:opacity-40 text-sm leading-relaxed"
-            style={{ color: 'var(--txt)', minHeight: 56, maxHeight: 180, caretColor: 'var(--accent)', padding: '12px 14px 8px' }}
-          />
-          <div className="flex items-center justify-between px-3 pb-2.5">
-            <span className="text-xs" style={{ color: 'var(--txt-3)' }}>Shift+Enter 줄바꿈</span>
+          {/* Prompt prefix */}
+          <div className="flex items-start px-3 pt-2.5" style={{ gap: 6 }}>
+            <span style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 11, userSelect: 'none', lineHeight: '1.6', paddingTop: 1 }}>&gt;_</span>
+            <textarea ref={taRef} value={input}
+              onChange={onInput} onKeyDown={onKey}
+              placeholder={hasApiKey ? 'describe what you want to build...' : 'configure API key first'}
+              disabled={!hasApiKey || isLoading} rows={2}
+              className="w-full bg-transparent resize-none focus:outline-none disabled:opacity-40"
+              style={{
+                color: 'var(--txt)',
+                fontFamily: 'var(--mono-font)',
+                fontSize: 11,
+                lineHeight: 1.6,
+                minHeight: 44,
+                maxHeight: 180,
+                caretColor: 'var(--accent)',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
+            <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9 }}>
+              Shift+Enter for newline
+            </span>
             <button onClick={submit} disabled={!canSend}
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1 transition-all"
               style={{
                 background: canSend ? 'var(--accent)' : 'var(--bg-hover)',
                 color: canSend ? 'white' : 'var(--txt-3)',
-                boxShadow: canSend ? '0 2px 10px var(--accent-bg)' : 'none',
+                border: 'none',
+                cursor: canSend ? 'pointer' : 'default',
+                fontFamily: 'var(--mono-font)',
+                fontSize: 10,
               }}
               onMouseEnter={e => { if (canSend) e.currentTarget.style.background = 'var(--accent-h)' }}
               onMouseLeave={e => { if (canSend) e.currentTarget.style.background = 'var(--accent)' }}>
               {isLoading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <Send className="w-3.5 h-3.5" />}
+                ? <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+                : <><Send style={{ width: 12, height: 12 }} /><span>run</span></>}
             </button>
           </div>
         </div>

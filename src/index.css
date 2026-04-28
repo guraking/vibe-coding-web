@@ -1,32 +1,42 @@
-﻿@tailwind base;
+﻿@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --bg:        #0d0d14;
-    --bg-panel:  #12121c;
-    --bg-card:   #1a1a28;
-    --bg-hover:  #222235;
-    --border:    #2a2a3e;
-    --border-s:  #1e1e30;
+    /* Vibe-Kanban light theme */
+    --bg:        #f4f5f7;
+    --bg-panel:  #ffffff;
+    --bg-card:   #f9fafb;
+    --bg-hover:  #f0f1f3;
+    --border:    #e2e4e9;
+    --border-s:  #eceef2;
 
-    --txt:       #e8e8f4;
-    --txt-2:     #8888aa;
-    --txt-3:     #4a4a68;
+    --txt:       #1a1d27;
+    --txt-2:     #5c6070;
+    --txt-3:     #9ea3b5;
 
-    --accent:    #7c6af6;
-    --accent-h:  #6955e8;
-    --accent-bg: rgba(124,106,246,0.12);
-    --accent-bd: rgba(124,106,246,0.3);
+    --accent:    #e8410a;
+    --accent-h:  #d03509;
+    --accent-bg: rgba(232,65,10,0.06);
+    --accent-bd: rgba(232,65,10,0.2);
 
-    --ok:        #34d399;
-    --ok-bg:     rgba(52,211,153,0.1);
-    --ok-bd:     rgba(52,211,153,0.25);
+    --ok:        #16a34a;
+    --ok-bg:     rgba(22,163,74,0.07);
+    --ok-bd:     rgba(22,163,74,0.2);
 
-    --err:       #f87171;
-    --err-bg:    rgba(248,113,113,0.1);
-    --err-bd:    rgba(248,113,113,0.25);
+    --warn:      #d97706;
+    --warn-bg:   rgba(217,119,6,0.07);
+    --warn-bd:   rgba(217,119,6,0.2);
+
+    --err:       #dc2626;
+    --err-bg:    rgba(220,38,38,0.07);
+    --err-bd:    rgba(220,38,38,0.2);
+
+    --pixel-font: 'Press Start 2P', monospace;
+    --mono-font:  'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   }
 
   * { box-sizing: border-box; }
@@ -34,14 +44,50 @@
   body {
     background: var(--bg);
     color: var(--txt);
-    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--txt-3); }
 
-  select option { background: var(--bg-card); }
+  select option { background: var(--bg-panel); color: var(--txt); }
+}
+
+/* Pixel logo style */
+.pixel-logo {
+  font-family: var(--pixel-font);
+  letter-spacing: 0.05em;
+  color: var(--txt);
+  text-shadow: none;
+}
+
+/* Badge pill style */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: var(--mono-font);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Retro scanline overlay (subtle) */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
