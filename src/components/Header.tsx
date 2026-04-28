@@ -80,7 +80,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             title={isEnvKey ? '.env.local에서 로드됨' : 'API 키 설정'}
           >
             <span style={{ fontSize: 9 }}>{apiKey ? '●' : '●'}</span>
-            <span>{apiKey ? (isEnvKey ? '.env 로드됨' : 'API 연결됨') : 'API 키 없음'}</span>
+            <span>{apiKey ? (isEnvKey ? 'API 로드됨' : 'API 연결됨') : 'API 키 없음'}</span>
           </button>
         </div>
       </header>
