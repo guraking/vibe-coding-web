@@ -1,79 +1,71 @@
-﻿import { useState, useEffect, useRef } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw } from 'lucide-react'
-
-function prepareHtml(raw: string): string {
-  const trimmed = raw.trim()
-  const isFullDoc = /<!doctype\s+html/i.test(trimmed)
-
-  let doc = isFullDoc ? trimmed : `<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Preview</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <style>* { font-family: 'Inter', sans-serif; } body { margin: 0; }</style>
-</head>
-<body>
-${trimmed}
-</body>
-</html>`
-
-  // 완전한 문서지만 Tailwind가 없으면 주입
-  if (isFullDoc && !doc.includes('cdn.tailwindcss.com')) {
-    doc = doc.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
-  }
-
-  return doc
-}
+import { useState, useRef, useEffect } from 'react'
+import { Eye, Code2, Copy, Check, ExternalLink, Loader2, FileCode2, RefreshCw, FileText, FileJson, Palette } from 'lucide-react'
 
 interface Props {
-  html: string
-  code: string
+  files: Record<string, string>
+  previewVersion: number
   isLoading: boolean
 }
 
 type Tab = 'preview' | 'code'
 
-export default function PreviewPanel({ html, code, isLoading }: Props) {
+const PREVIEW_URL = `${import.meta.env.BASE_URL}preview/index.html`
+
+function fileIcon(name: string) {
+  if (name.endsWith('.css')) return <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: '#60a5fa' }} />
+  if (name.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 shrink-0" style={{ color: '#fbbf24' }} />
+  if (name.endsWith('.js') || name.endsWith('.ts')) return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#f59e0b' }} />
+  return <FileCode2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--ok)' }} />
+}
+
+export default function PreviewPanel({ files, previewVersion, isLoading }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
+  const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string>('')
-  const prevUrlRef = useRef<string>('')
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [iframeKey, setIframeKey] = useState(0)
+
+  const fileNames = Object.keys(files).sort((a, b) => {
+    const order = ['index.html']
+    const ai = order.indexOf(a), bi = order.indexOf(b)
+    if (ai >= 0 && bi < 0) return -1
+    if (bi >= 0 && ai < 0) return 1
+    const ext = (f: string) => f.split('.').pop() || ''
+    const extOrder = ['html', 'css', 'js', 'ts', 'json']
+    return (extOrder.indexOf(ext(a)) - extOrder.indexOf(ext(b))) || a.localeCompare(b)
+  })
+
+  const hasFiles = fileNames.length > 0
 
   useEffect(() => {
-    if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current)
-    if (!html) { setPreviewUrl(''); prevUrlRef.current = ''; return }
-    const blob = new Blob([prepareHtml(html)], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    setPreviewUrl(url)
-    prevUrlRef.current = url
-    return () => { URL.revokeObjectURL(url) }
-  }, [html])
+    if (previewVersion > 0) setIframeKey(k => k + 1)
+  }, [previewVersion])
 
-  const copyCode = async () => {
-    await navigator.clipboard.writeText(code)
+  useEffect(() => {
+    if (hasFiles && !files[selectedFile]) setSelectedFile(fileNames[0])
+  }, [files])
+
+  const selectedContent = files[selectedFile] || ''
+  const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
+
+  const copyFile = async () => {
+    await navigator.clipboard.writeText(selectedContent)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
-  const openNew = () => {
-    if (previewUrl) window.open(previewUrl, '_blank')
-  }
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const refresh = () => { if (iframeRef.current) iframeRef.current.src = iframeRef.current.src }
+  const refresh = () => setIframeKey(k => k + 1)
+  const openNew = () => window.open(PREVIEW_URL, '_blank')
 
-  const Tab = ({ id, icon: Icon, label }: { id: 'preview' | 'code', icon: React.ElementType, label: string }) => (
+  const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
       className="flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-medium transition-all"
-      style={tab === id
-        ? { background: 'var(--bg-hover)', color: 'var(--txt)' }
-        : { color: 'var(--txt-3)' }}
+      style={tab === id ? { background: 'var(--bg-hover)', color: 'var(--txt)' } : { color: 'var(--txt-3)' }}
       onMouseEnter={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt-2)' }}
       onMouseLeave={e => { if (tab !== id) e.currentTarget.style.color = 'var(--txt-3)' }}>
       <Icon className="w-3.5 h-3.5" />
       <span>{label}</span>
-      {id === 'preview' && isLoading && tab === id && <Loader2 className="w-3 h-3 animate-spin ml-1" style={{ color: 'var(--accent)' }} />}
+      {id === 'preview' && isLoading && (
+        <Loader2 className="w-3 h-3 animate-spin ml-1" style={{ color: 'var(--accent)' }} />
+      )}
     </button>
   )
 
@@ -82,8 +74,8 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
       {/* Tab bar */}
       <div className="flex items-center h-11 px-2 gap-1 flex-shrink-0"
         style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        <Tab id="preview" icon={Eye} label="미리보기" />
-        <Tab id="code" icon={Code2} label="코드" />
+        <TabBtn id="preview" icon={Eye} label="미리보기" />
+        <TabBtn id="code" icon={Code2} label={`코드${hasFiles ? ` (${fileNames.length})` : ''}`} />
         <div className="flex-1" />
 
         {isLoading && (
@@ -93,46 +85,50 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
           </div>
         )}
 
-        {previewUrl && tab === 'preview' && (
-          <button onClick={refresh}
-            className="flex items-center justify-center w-7 h-7 rounded-md text-xs transition-all"
-            style={{ color: 'var(--txt-3)' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}
-            title="새로고침">
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
+        {hasFiles && tab === 'preview' && (
+          <>
+            <button onClick={refresh}
+              className="flex items-center justify-center w-7 h-7 rounded-md transition-all"
+              style={{ color: 'var(--txt-3)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}
+              title="새로고침">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={openNew}
+              className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
+              style={{ color: 'var(--txt-3)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}>
+              <ExternalLink className="w-3.5 h-3.5" /><span>새 탭</span>
+            </button>
+          </>
         )}
-        {code && tab === 'code' && (
-          <button onClick={copyCode}
+        {hasFiles && tab === 'code' && (
+          <button onClick={copyFile}
             className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
-            style={copied
-              ? { color: 'var(--ok)', background: 'var(--ok-bg)' }
-              : { color: 'var(--txt-3)' }}
+            style={copied ? { color: 'var(--ok)', background: 'var(--ok-bg)' } : { color: 'var(--txt-3)' }}
             onMouseEnter={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
             onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' } }}>
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? '복사됨' : '복사'}</span>
           </button>
         )}
-        {code && tab === 'preview' && (
-          <button onClick={openNew}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs transition-all"
-            style={{ color: 'var(--txt-3)' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}>
-            <ExternalLink className="w-3.5 h-3.5" /><span>새 탭</span>
-          </button>
-        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Preview */}
-        <div className={`absolute inset-0 flex flex-col ${tab === 'preview' ? '' : 'hidden'}`}>
-          {previewUrl ? (
-            <iframe ref={iframeRef} src={previewUrl} className="w-full h-full border-0"
-              allow="fullscreen" title="Preview" />
+        {/* Preview tab */}
+        <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
+          {hasFiles ? (
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              src={PREVIEW_URL}
+              className="w-full h-full border-0"
+              allow="fullscreen"
+              title="Preview"
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -166,30 +162,50 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
           )}
         </div>
 
-        {/* Code */}
-        <div className={`absolute inset-0 overflow-auto ${tab === 'code' ? 'block' : 'hidden'}`}
-          style={{ background: 'var(--bg)' }}>
-          {code ? (
-            <table className="w-full border-collapse min-w-full">
-              <tbody>
-                {code.split('\n').map((line, i) => (
-                  <tr key={i} className="transition-colors"
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-panel)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td className="text-right text-xs font-mono select-none align-top py-px pl-4 pr-4"
-                      style={{ color: 'var(--txt-3)', borderRight: '1px solid var(--border-s)', minWidth: '3rem' }}>
-                      {i + 1}
-                    </td>
-                    <td className="text-xs font-mono align-top py-px pl-4 pr-8 whitespace-pre-wrap break-all"
-                      style={{ color: 'var(--txt-2)' }}>
-                      {line || ' '}
-                    </td>
-                  </tr>
+        {/* Code tab */}
+        <div className={`absolute inset-0 ${tab === 'code' ? 'flex' : 'hidden'}`}>
+          {hasFiles ? (
+            <>
+              <div className="flex flex-col flex-shrink-0 overflow-y-auto"
+                style={{ width: 160, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}>
+                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider select-none"
+                  style={{ color: 'var(--txt-3)' }}>파일</div>
+                {fileNames.map(name => (
+                  <button key={name} onClick={() => setSelectedFile(name)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs text-left w-full transition-colors"
+                    style={selectedFile === name
+                      ? { background: 'var(--accent-bg)', color: 'var(--txt)', borderRight: '2px solid var(--accent)' }
+                      : { color: 'var(--txt-2)', borderRight: '2px solid transparent' }}
+                    onMouseEnter={e => { if (selectedFile !== name) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                    onMouseLeave={e => { if (selectedFile !== name) e.currentTarget.style.background = 'transparent' }}>
+                    {fileIcon(name)}
+                    <span className="truncate">{name}</span>
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
+                <table className="w-full border-collapse min-w-full">
+                  <tbody>
+                    {selectedContent.split('\n').map((line, i) => (
+                      <tr key={i} className="transition-colors"
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-panel)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td className="text-right text-xs font-mono select-none align-top py-px pl-4 pr-4"
+                          style={{ color: 'var(--txt-3)', borderRight: '1px solid var(--border-s)', minWidth: '3rem' }}>
+                          {i + 1}
+                        </td>
+                        <td className="text-xs font-mono align-top py-px pl-4 pr-8 whitespace-pre-wrap break-all"
+                          style={{ color: 'var(--txt-2)' }}>
+                          {line || ' '}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
-            <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--txt-3)' }}>
+            <div className="flex items-center justify-center w-full h-full text-xs" style={{ color: 'var(--txt-3)' }}>
               아직 생성된 코드가 없습니다
             </div>
           )}
@@ -201,8 +217,14 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
         style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', color: 'var(--txt-3)' }}>
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--txt-2)' }}>vibe-coding-web</span>
-          <span>/</span>
-          <span style={{ color: '#fbbf24', opacity: 0.8 }}>index.html</span>
+          {hasFiles && (
+            <>
+              <span>/</span>
+              <span style={{ color: '#fbbf24', opacity: 0.8 }}>
+                {tab === 'code' ? selectedFile : 'index.html'}
+              </span>
+            </>
+          )}
           {isLoading && (
             <span className="flex items-center gap-1" style={{ color: 'var(--accent)' }}>
               <Loader2 className="w-2.5 h-2.5 animate-spin" /> 생성 중
@@ -211,7 +233,7 @@ export default function PreviewPanel({ html, code, isLoading }: Props) {
         </div>
         <div className="flex items-center gap-3">
           <span>UTF-8</span>
-          {code && <span>{code.split('\n').length} lines</span>}
+          {hasFiles && <span>{fileNames.length}개 파일 · {totalLines} lines</span>}
         </div>
       </div>
     </div>

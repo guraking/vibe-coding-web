@@ -4,12 +4,14 @@ import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe } from './services/ai'
 import type { Message } from './services/ai'
+import { useServiceWorker } from './hooks/useServiceWorker'
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
-  const [previewHtml, setPreviewHtml] = useState('')
-  const [currentCode, setCurrentCode] = useState('')
+  const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
+  const [previewVersion, setPreviewVersion] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const { sendFiles } = useServiceWorker()
   // .env.local의 VITE_OPENAI_API_KEY를 우선 사용, 없으면 localStorage fallback
   const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
   const [apiKey, setApiKey] = useState(() => envKey?.trim() || localStorage.getItem('vibe_api_key') || '')
@@ -61,28 +63,30 @@ export default function App() {
     setMessages(history)
     setIsLoading(true)
     bufferRef.current = ''
-    const placeholder: Message = { role: 'assistant', content: '', html: '' }
+    const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
     try {
-      for await (const chunk of streamCode(apiKey, model, history, currentCode || undefined)) {
+      for await (const chunk of streamCode(apiKey, model, history, Object.keys(projectFiles).length ? projectFiles : undefined)) {
         bufferRef.current += chunk
         const { explanation } = parseVibe(bufferRef.current)
         setMessages((prev) => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: explanation || '생성 중...', html: '' }
+          updated[updated.length - 1] = { role: 'assistant', content: explanation || '생성 중...', files: {} }
           return updated
         })
       }
-      const { html, explanation } = parseVibe(bufferRef.current)
-      const finalHtml = html || bufferRef.current
-      setPreviewHtml(finalHtml)
-      setCurrentCode(finalHtml)
+      const { files, explanation } = parseVibe(bufferRef.current)
+      if (Object.keys(files).length > 0) {
+        await sendFiles(files).catch(console.error)
+        setProjectFiles(files)
+        setPreviewVersion(v => v + 1)
+      }
       setMessages((prev) => {
         const updated = [...prev]
         updated[updated.length - 1] = {
           role: 'assistant',
           content: explanation || '완성됐습니다! 코드 탭에서 소스를 확인할 수 있어요.',
-          html: finalHtml,
+          files,
         }
         return updated
       })
@@ -90,7 +94,7 @@ export default function App() {
       const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
       setMessages((prev) => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, html: '' }
+        updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, files: {} }
         return updated
       })
     } finally {
@@ -176,7 +180,7 @@ export default function App() {
           </>
         )}
 
-        <PreviewPanel html={previewHtml} code={currentCode} isLoading={isLoading} />
+        <PreviewPanel files={projectFiles} previewVersion={previewVersion} isLoading={isLoading} />
       </div>
     </div>
   )
