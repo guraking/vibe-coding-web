@@ -15,6 +15,11 @@ export async function getGitHubUser(token: string): Promise<{ login: string; ava
   return res.json()
 }
 
+/** UTF-8 문자열을 Base64로 인코딩 (GitHub Contents API용) */
+function toBase64(str: string): string {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))))
+}
+
 export async function createRepoWithFiles(
   token: string,
   repoName: string,
@@ -23,7 +28,7 @@ export async function createRepoWithFiles(
   const headers = ghHeaders(token)
   const { login: owner } = await getGitHubUser(token)
 
-  // 1. Create repo
+  // 1. Create empty repo (no auto_init — avoids timing/409 issues with git data API)
   const createRes = await fetch(`${GH_API}/user/repos`, {
     method: 'POST',
     headers,
@@ -39,43 +44,26 @@ export async function createRepoWithFiles(
     throw new Error(err.message || `저장소 생성 실패 (${createRes.status})`)
   }
 
-  // 2. Create blobs (parallel)
-  const treeItems = await Promise.all(
-    Object.entries(files).map(async ([path, content]) => {
-      const blobRes = await fetch(`${GH_API}/repos/${owner}/${repoName}/git/blobs`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ content, encoding: 'utf-8' }),
-      })
-      const { sha } = await blobRes.json() as { sha: string }
-      return { path, mode: '100644' as const, type: 'blob' as const, sha }
+  // 2. Upload files sequentially via Contents API.
+  //    First PUT on an empty repo creates the initial commit + main branch automatically.
+  const entries = Object.entries(files)
+  for (let i = 0; i < entries.length; i++) {
+    const [path, content] = entries[i]
+    const putRes = await fetch(`${GH_API}/repos/${owner}/${repoName}/contents/${path}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: i === 0
+          ? '🚀 Initial commit — created with Vibe Coding AI'
+          : `Add ${path}`,
+        content: toBase64(content),
+      }),
     })
-  )
-
-  // 3. Create tree
-  const { sha: treeSha } = await fetch(`${GH_API}/repos/${owner}/${repoName}/git/trees`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ tree: treeItems }),
-  }).then(r => r.json()) as { sha: string }
-
-  // 4. Create commit
-  const { sha: commitSha } = await fetch(`${GH_API}/repos/${owner}/${repoName}/git/commits`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      message: '🚀 Initial commit — created with Vibe Coding AI',
-      tree: treeSha,
-      parents: [],
-    }),
-  }).then(r => r.json()) as { sha: string }
-
-  // 5. Set main branch
-  await fetch(`${GH_API}/repos/${owner}/${repoName}/git/refs`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ ref: 'refs/heads/main', sha: commitSha }),
-  })
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({})) as { message?: string }
+      throw new Error(err.message || `파일 업로드 실패: ${path} (${putRes.status})`)
+    }
+  }
 
   return { owner, repo: repoName, url: `https://github.com/${owner}/${repoName}` }
 }

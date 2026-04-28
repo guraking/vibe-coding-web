@@ -74,9 +74,9 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
     return url
   }, [files, projectType])
 
-  // StackBlitz URL after GitHub export
-  const stackblitzUrl = githubRepo
-    ? `https://stackblitz.com/github/${githubRepo.owner}/${githubRepo.repo}?embed=1&view=preview&hideNavigation=0&theme=dark`
+  // CodeSandbox URL after GitHub export
+  const sandboxUrl = githubRepo
+    ? `https://codesandbox.io/embed/github/${githubRepo.owner}/${githubRepo.repo}/tree/main?fontsize=13&theme=dark&view=preview&hidenavigation=1`
     : ''
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   }
   const refresh = () => setIframeKey(k => k + 1)
   const openNew = () => {
-    if (stackblitzUrl) window.open(stackblitzUrl.replace('?embed=1&', '?'), '_blank')
+    if (sandboxUrl) window.open(`https://codesandbox.io/p/github/${githubRepo!.owner}/${githubRepo!.repo}/main`, '_blank')
     else if (blobUrl) window.open(blobUrl, '_blank')
   }
 
@@ -113,7 +113,7 @@ export default function PreviewPanel({ files, projectType, previewVersion, isLoa
   }
 
   // What to show in preview iframe
-  const previewSrc = stackblitzUrl ? stackblitzUrl : blobUrl
+  const previewSrc = sandboxUrl ? sandboxUrl : blobUrl
 
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
