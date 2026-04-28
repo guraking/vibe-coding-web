@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { FolderGit2, Loader2, X, KeyRound, ExternalLink } from 'lucide-react'
 import { fetchRepoFiles, detectProjectType } from '../services/github'
 
@@ -13,6 +13,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
+  const backdropPressRef = useRef(false)
 
   const handleImport = async () => {
     if (!url.trim()) return
@@ -36,12 +37,17 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
-      onClick={onClose}
+      onMouseDown={e => { backdropPressRef.current = e.target === e.currentTarget }}
+      onMouseUp={e => {
+        if (backdropPressRef.current && e.target === e.currentTarget) onClose()
+        backdropPressRef.current = false
+      }}
+      onMouseLeave={() => { backdropPressRef.current = false }}
     >
       <div
         className="w-[420px] shadow-2xl flex flex-col gap-4"
         style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: 24 }}
-        onClick={e => e.stopPropagation()}
+        onMouseDown={() => { backdropPressRef.current = false }}
       >
         {/* Header */}
         <div className="flex items-center justify-between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--border-s)' }}>

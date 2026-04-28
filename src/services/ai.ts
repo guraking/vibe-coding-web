@@ -149,6 +149,10 @@ React mode rules:
 - Fully interactive with React hooks (useState, useEffect, etc.)
 - Dark theme by default
 - When refining: keep design language consistent, improve only what was asked
+- CRITICAL SYNTAX: Every element in an array of objects MUST start with { — never omit the opening brace
+  WRONG: [ label: 'Home', href: '#' }, ... ]
+  RIGHT: [ { label: 'Home', href: '#' }, ... ]
+- CRITICAL SYNTAX: Verify every JSX tag is properly closed and all parentheses/braces/brackets are balanced before outputting
 
 ## Mode 3: Vue Project
 ONLY when user explicitly asks for Vue:

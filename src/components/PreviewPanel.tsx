@@ -17,6 +17,19 @@ type DeploymentHistoryItem = { owner: string; repo: string; branch: string; url:
 type Tab = 'preview' | 'code'
 
 const DEPLOY_HISTORY_KEY = 'vibe_deploy_history'
+const GITHUB_REPO_KEY = 'vibe_github_repo'
+
+function loadGithubRepo(): GithubRepo | null {
+  try {
+    const raw = localStorage.getItem(GITHUB_REPO_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as GithubRepo
+    if (!parsed?.owner || !parsed?.repo) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
 
 function loadDeployHistory(): DeploymentHistoryItem[] {
   try {
@@ -145,7 +158,13 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const isImportRef = useRef(false)
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(null)
+  const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(() => loadGithubRepo())
+
+  const setGithubRepoPersist = (repo: GithubRepo | null) => {
+    setGithubRepo(repo)
+    if (repo) localStorage.setItem(GITHUB_REPO_KEY, JSON.stringify(repo))
+    else localStorage.removeItem(GITHUB_REPO_KEY)
+  }
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployStatus, setDeployStatus] = useState('')
   const [deployError, setDeployError] = useState('')
@@ -153,6 +172,11 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const [deployToken, setDeployToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
   const [deployUrlCopied, setDeployUrlCopied] = useState(false)
   const [deployHistory, setDeployHistory] = useState<DeploymentHistoryItem[]>(() => loadDeployHistory())
+  const [fileListWidth, setFileListWidth] = useState(220)
+  const codeTabRef = useRef<HTMLDivElement>(null)
+  const resizingRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartWidthRef = useRef(220)
 
   const fileNames = Object.keys(files).sort((a, b) => {
     const order = ['index.html', 'package.json', 'vite.config.js']
@@ -186,13 +210,46 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         setSelectedFile(fileNames[0] || 'index.html')
         return
       }
-      setGithubRepo(null)
+      // Keep linked repo so subsequent pushes reuse the same destination.
       setDeployUrl(null)
       setSelectedFile(fileNames[0] || 'index.html')
     }
   }, [files])
 
   useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current) }, [])
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return
+      const containerWidth = codeTabRef.current?.clientWidth || 0
+      const minWidth = 140
+      const maxWidth = Math.max(minWidth, Math.floor(containerWidth * 0.6))
+      const nextWidth = dragStartWidthRef.current + (e.clientX - dragStartXRef.current)
+      setFileListWidth(Math.min(maxWidth, Math.max(minWidth, nextWidth)))
+    }
+
+    const onMouseUp = () => {
+      if (!resizingRef.current) return
+      resizingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  const startResizeFileList = (e: React.MouseEvent<HTMLDivElement>) => {
+    resizingRef.current = true
+    dragStartXRef.current = e.clientX
+    dragStartWidthRef.current = fileListWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   const selectedContent = files[selectedFile] || ''
   const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
@@ -239,8 +296,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     else if (githubRepo) window.open(`https://github.com/${githubRepo.owner}/${githubRepo.repo}/deployments`, '_blank')
   }
 
-  const handleExportSuccess = async (owner: string, repo: string, token: string) => {
-    setGithubRepo({ owner, repo, branch: 'main' })
+  const handleExportSuccess = async (owner: string, repo: string, branch: string, token: string) => {
+    setGithubRepoPersist({ owner, repo, branch })
     setDeployUrl(null)
     setDeployError('')
     setDeployStep('idle')
@@ -250,7 +307,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
 
     // React/Vue는 push 완료 직후 자동 배포 후 preview에 배포 URL 표시
     if (projectType === 'react' || projectType === 'vue') {
-      await startDeploy(owner, repo, 'main', token)
+      await startDeploy(owner, repo, branch, token)
     }
   }
 
@@ -277,7 +334,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const handleImportSuccess = async (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => {
     isImportRef.current = true
     setShowImport(false)
-    setGithubRepo({ owner, repo, branch })
+    setGithubRepoPersist({ owner, repo, branch })
     setDeployUrl(null)
     setDeployError('')
     setDeployStep('idle')
@@ -571,7 +628,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                 onClick={() => setShowExport(true)}
                 className="flex items-center gap-2 transition-colors"
                 style={{ background: 'var(--accent)', color: '#fff', fontFamily: 'var(--mono-font)', fontSize: 11, padding: '8px 20px', border: 'none', cursor: 'pointer' }}>
-                <GitFork style={{ width: 14, height: 14 }} /> push to github &amp; preview
+                <GitFork style={{ width: 14, height: 14 }} /> push to github & preview
               </button>
               <div className="flex flex-wrap gap-1.5 justify-center" style={{ maxWidth: 280 }}>
                 {fileNames.slice(0, 6).map(name => (
@@ -628,28 +685,35 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         </div>
 
         {/* Code tab */}
-        <div className={`absolute inset-0 ${tab === 'code' ? 'flex' : 'hidden'}`}>
+        <div ref={codeTabRef} className={`absolute inset-0 ${tab === 'code' ? 'flex' : 'hidden'}`}>
           {hasFiles ? (
             <>
               <div className="flex flex-col flex-shrink-0 overflow-y-auto"
-                style={{ width: 160, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}>
+                style={{ width: fileListWidth, background: 'var(--bg-panel)' }}>
                 <div className="px-3 py-2 select-none"
                   style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 9, letterSpacing: '0.1em', borderBottom: '1px solid var(--border-s)' }}>
                   FILES
                 </div>
                 {fileNames.map(name => (
                   <button key={name} onClick={() => setSelectedFile(name)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-left w-full transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-left w-full min-w-0 transition-colors"
                     style={selectedFile === name
                       ? { background: 'var(--accent-bg)', color: 'var(--txt)', borderRight: '2px solid var(--accent)', fontFamily: 'var(--mono-font)', fontSize: 10 }
                       : { color: 'var(--txt-2)', borderRight: '2px solid transparent', fontFamily: 'var(--mono-font)', fontSize: 10 }}
                     onMouseEnter={e => { if (selectedFile !== name) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                    onMouseLeave={e => { if (selectedFile !== name) e.currentTarget.style.background = 'transparent' }}>
+                    onMouseLeave={e => { if (selectedFile !== name) e.currentTarget.style.background = 'transparent' }}
+                    title={name}>
                     {fileIcon(name)}
-                    <span className="truncate">{name}</span>
+                    <span className="truncate min-w-0">{name}</span>
                   </button>
                 ))}
               </div>
+              <div
+                onMouseDown={startResizeFileList}
+                className="flex-shrink-0"
+                style={{ width: 1, cursor: 'col-resize', background: 'var(--border)' }}
+                title="Drag to resize file list"
+              />
               <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
                 <table className="w-full border-collapse min-w-full">
                   <tbody>
@@ -714,6 +778,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
       {showExport && (
         <ExportModal
           files={files}
+          githubRepo={githubRepo}
           onClose={() => setShowExport(false)}
           onSuccess={handleExportSuccess}
         />

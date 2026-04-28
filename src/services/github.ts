@@ -104,6 +104,28 @@ function repairCssSyntax(content: string): string {
   return out
 }
 
+/**
+ * Fix the most common LLM mistake in JS/JSX/TS/TSX:
+ * Missing opening brace { for an array-of-objects element.
+ * Example (bad):  label: 'Home', href: '#' },
+ * Fixed:        { label: 'Home', href: '#' },
+ */
+function repairJsSyntax(content: string): string {
+  const lines = content.split('\n')
+  const fixed = lines.map((line) => {
+    // Must be indented 2+ spaces, start with identifier: 'string', end with } or },
+    if (
+      /^ {2,}[a-zA-Z_$][a-zA-Z0-9_$]*\s*:\s*['"\`]/.test(line) &&
+      /\}\s*,?\s*$/.test(line) &&
+      !/^ {2,}\{/.test(line)
+    ) {
+      return line.replace(/^( +)/, '$1{ ')
+    }
+    return line
+  })
+  return fixed.join('\n')
+}
+
 function ensureProjectToolchain(files: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = { ...files }
   const type = detectProjectType(next)
@@ -225,6 +247,8 @@ function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = f
   for (const [path, content] of Object.entries(next)) {
     if (path.endsWith('.css')) {
       next[path] = repairCssSyntax(content)
+    } else if (/\.(jsx?|tsx?)$/.test(path)) {
+      next[path] = repairJsSyntax(content)
     }
   }
 
@@ -235,10 +259,12 @@ export async function createRepoWithFiles(
   token: string,
   repoName: string,
   files: Record<string, string>,
-): Promise<{ owner: string; repo: string; url: string }> {
+): Promise<{ owner: string; repo: string; branch: string; url: string }> {
   const headers = ghHeaders(token)
   const { login: owner } = await getGitHubUser(token)
-  const normalizedFiles = normalizeFilesForBuild(files, true)
+  const normalizedFiles = normalizeFilesForBuild(files, false)
+  const encodedOwner = encodeURIComponent(owner)
+  const encodedRepo = encodeURIComponent(repoName)
 
   // 1. Create empty repo (no auto_init — avoids timing/409 issues with git data API)
   const createRes = await fetch(`${GH_API}/user/repos`, {
@@ -252,8 +278,26 @@ export async function createRepoWithFiles(
     }),
   })
   if (!createRes.ok) {
-    const err = await createRes.json().catch(() => ({})) as { message?: string }
-    throw new Error(err.message || `저장소 생성 실패 (${createRes.status})`)
+    const err = await createRes.json().catch(() => ({})) as {
+      message?: string
+      errors?: Array<{ message?: string; code?: string; field?: string }>
+    }
+    const detail = (err.errors || [])
+      .map((e) => e.message || [e.field, e.code].filter(Boolean).join(': '))
+      .filter(Boolean)
+      .join(', ')
+    const msg = [err.message, detail].filter(Boolean).join(' | ')
+
+    // If creation fails due to duplication/conflict, reuse existing repo automatically.
+    if (createRes.status === 422 || createRes.status === 409) {
+      const repoRes = await fetch(`${GH_API}/repos/${encodedOwner}/${encodedRepo}`, { headers })
+      if (!repoRes.ok) throw new Error(msg || `저장소 생성 실패 (${createRes.status})`)
+      const repoData = await repoRes.json() as { default_branch?: string }
+      const branch = repoData.default_branch || 'main'
+      await updateRepoWithFiles(token, owner, repoName, branch, normalizedFiles)
+      return { owner, repo: repoName, branch, url: `https://github.com/${owner}/${repoName}` }
+    }
+    throw new Error(msg || `저장소 생성 실패 (${createRes.status})`)
   }
 
   // 2. Upload files sequentially via Contents API.
@@ -277,7 +321,69 @@ export async function createRepoWithFiles(
     }
   }
 
-  return { owner, repo: repoName, url: `https://github.com/${owner}/${repoName}` }
+  let branch = 'main'
+  const repoRes = await fetch(`${GH_API}/repos/${encodedOwner}/${encodedRepo}`, { headers })
+  if (repoRes.ok) {
+    const repoData = await repoRes.json() as { default_branch?: string }
+    branch = repoData.default_branch || 'main'
+  }
+
+  return { owner, repo: repoName, branch, url: `https://github.com/${owner}/${repoName}` }
+}
+
+export async function updateRepoWithFiles(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: Record<string, string>,
+): Promise<{ owner: string; repo: string; branch: string; url: string }> {
+  const headers = ghHeaders(token)
+  const normalizedFiles = normalizeFilesForBuild(files, false)
+
+  // Ensure the target repo is accessible with this token before uploading files.
+  const repoRes = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers })
+  if (!repoRes.ok) {
+    const err = await repoRes.json().catch(() => ({})) as { message?: string }
+    throw new Error(err.message || `저장소 접근 실패 (${repoRes.status})`)
+  }
+
+  const entries = Object.entries(normalizedFiles)
+  for (let i = 0; i < entries.length; i++) {
+    const [path, content] = entries[i]
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/')
+
+    let sha: string | undefined
+    const currentRes = await fetch(
+      `${GH_API}/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
+      { headers },
+    )
+    if (currentRes.ok) {
+      const current = await currentRes.json() as { sha?: string }
+      sha = current.sha
+    } else if (currentRes.status !== 404) {
+      const err = await currentRes.json().catch(() => ({})) as { message?: string }
+      throw new Error(err.message || `기존 파일 조회 실패: ${path} (${currentRes.status})`)
+    }
+
+    const putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${encodedPath}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: sha ? `Update ${path}` : `Add ${path}`,
+        content: toBase64(content),
+        branch,
+        sha,
+      }),
+    })
+
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({})) as { message?: string }
+      throw new Error(err.message || `파일 업로드 실패: ${path} (${putRes.status})`)
+    }
+  }
+
+  return { owner, repo, branch, url: `https://github.com/${owner}/${repo}` }
 }
 
 /** Base64(GitHub API) → UTF-8 string */
@@ -513,36 +619,46 @@ export async function deployToGitHubPages(
   const workflowPath = '.github/workflows/vibe-deploy.yml'
   const workflowContent = generateDeployWorkflow(branch, repo)
 
-  // create-first 전략: 신규 저장소에서 불필요한 404 pre-check를 피함
-  const putCreateBody: Record<string, unknown> = {
-    message: 'chore: add vibe GitHub Pages deploy workflow',
+  // GET-first 전략: sha를 먼저 조회해서 422 충돌을 사전에 방지
+  let existingSha: string | undefined
+  const checkRes = await fetch(
+    `${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}?ref=${encodeURIComponent(branch)}`,
+    { headers },
+  ).catch(() => null)
+  if (checkRes?.ok) {
+    const checkData = await checkRes.json().catch(() => ({})) as { sha?: string }
+    existingSha = checkData.sha
+  }
+
+  const buildWorkflowBody = (sha?: string) => JSON.stringify({
+    message: sha
+      ? 'chore: update vibe GitHub Pages deploy workflow'
+      : 'chore: add vibe GitHub Pages deploy workflow',
     content: toBase64(workflowContent),
     branch,
-  }
+    ...(sha ? { sha } : {}),
+  })
 
   let putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
     method: 'PUT',
     headers,
-    body: JSON.stringify(putCreateBody),
+    body: buildWorkflowBody(existingSha),
   })
 
-  // 이미 파일이 있으면 sha를 읽어 update로 재시도
-  if (!putRes.ok && (putRes.status === 409 || putRes.status === 422)) {
-    const checkRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, { headers })
-    if (checkRes.ok) {
-      const data = await checkRes.json() as { sha: string }
-      const putUpdateBody: Record<string, unknown> = {
-        message: 'chore: update vibe deploy workflow',
-        content: toBase64(workflowContent),
-        branch,
-        sha: data.sha,
-      }
-      putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(putUpdateBody),
-      })
-    }
+  // 422: sha 충돌(stale/missing) → 재시도: 현재 sha를 다시 조회해 즉시 재PUT
+  if (!putRes.ok && putRes.status === 422) {
+    const retryGet = await fetch(
+      `${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}?ref=${encodeURIComponent(branch)}`,
+      { headers },
+    ).catch(() => null)
+    const retrySha = retryGet?.ok
+      ? ((await retryGet.json().catch(() => ({}))) as { sha?: string }).sha
+      : undefined
+    putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${workflowPath}`, {
+      method: 'PUT',
+      headers,
+      body: buildWorkflowBody(retrySha),
+    })
   }
 
   if (!putRes.ok) {
@@ -556,21 +672,33 @@ export async function deployToGitHubPages(
 
   // ── Step 2: GitHub Pages 활성화 ───────────────────────────────────────────
   onStatus('GitHub Pages 활성화 중...')
-  // create-first 전략: 404 pre-check 대신 POST 후 충돌 시 PUT
-  const pagesCreateRes = await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ build_type: 'workflow' }),
-  }).catch(() => null)
+  const pagesRes = await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, { headers }).catch(() => null)
 
-  if (pagesCreateRes && (pagesCreateRes.status === 409 || pagesCreateRes.status === 422)) {
-    await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
-      method: 'PUT',
+  if (pagesRes?.ok) {
+    const pagesData = await pagesRes.json().catch(() => ({})) as { build_type?: string }
+    if (pagesData.build_type !== 'workflow') {
+      await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ build_type: 'workflow' }),
+      }).catch(() => {})
+    }
+  } else if (pagesRes?.status === 404) {
+    const pagesCreateRes = await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
+      method: 'POST',
       headers,
       body: JSON.stringify({ build_type: 'workflow' }),
-    }).catch(() => {})
+    }).catch(() => null)
+
+    if (pagesCreateRes && (pagesCreateRes.status === 409 || pagesCreateRes.status === 422)) {
+      await fetch(`${GH_API}/repos/${owner}/${repo}/pages`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ build_type: 'workflow' }),
+      }).catch(() => {})
+    }
   }
-  // 그 외 오류(403 등)는 무시하고 진행 — workflow가 push됐으면 Pages 설정 없이도 run은 시작됨
+  // 그 외 오류(403 등)는 무시하고 진행 — workflow가 push됐으면 Actions run은 시작됨
 
   // ── Step 3: workflow run 탐색 (push 후 생성된 run) ────────────────────────
   onStatus('워크플로우 시작 대기 중...')
