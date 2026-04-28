@@ -399,6 +399,52 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms))
 }
 
+async function patchLegacyEntryScriptPath(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  onStatus: (msg: string) => void,
+): Promise<void> {
+  const headers = ghHeaders(token)
+  const path = 'index.html'
+
+  const getRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`, {
+    headers,
+  }).catch(() => null)
+
+  // If index.html does not exist (or inaccessible), skip auto-fix silently.
+  if (!getRes?.ok) return
+
+  const data = await getRes.json() as { content?: string; encoding?: string; sha?: string }
+  if (!data.content || data.encoding !== 'base64' || !data.sha) return
+
+  const current = fromBase64(data.content)
+  const patched = current.replace(
+    /(<script[^>]*\bsrc=)(["'])\/src\/(main\.(?:jsx|tsx|js|ts))\2([^>]*>)/gi,
+    '$1$2./src/$3$2$4',
+  )
+
+  if (patched === current) return
+
+  onStatus('기존 index.html 경로 자동 수정 중...')
+  const putRes = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      message: 'fix: use relative entry path for GitHub Pages',
+      content: toBase64(patched),
+      sha: data.sha,
+      branch,
+    }),
+  })
+
+  if (!putRes.ok) {
+    const err = await putRes.json().catch(() => ({})) as { message?: string }
+    throw new Error(err.message || `기존 index.html 자동 수정 실패 (${putRes.status})`)
+  }
+}
+
 function generateDeployWorkflow(branch: string, repo: string): string {
   return `name: Deploy to GitHub Pages
 on:
@@ -458,6 +504,9 @@ export async function deployToGitHubPages(
 ): Promise<string> {
   const headers = ghHeaders(token)
   const pushedAt = new Date().toISOString()
+
+  // ── Pre-step: patch legacy absolute entry path for existing repos ────────
+  await patchLegacyEntryScriptPath(token, owner, repo, branch, onStatus)
 
   // ── Step 1: 워크플로우 파일 push ──────────────────────────────────────────
   onStatus('GitHub Actions 워크플로우 추가 중...')
