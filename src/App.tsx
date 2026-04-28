@@ -98,30 +98,95 @@ export default function App() {
     }
   }
 
+  const [activeToolWindow, setActiveToolWindow] = useState<'chat' | null>('chat')
+
+  const toolWindowIcons = [
+    {
+      id: 'chat' as const,
+      title: 'AI Chat',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.9"/>
+          <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/>
+          <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/>
+          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.3"/>
+        </svg>
+      ),
+    },
+    {
+      id: null as null,
+      title: 'Structure',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      id: null as null,
+      title: 'Git',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+          <path d="M6 9v6M18 15v-3a3 3 0 0 0-3-3H9"/>
+        </svg>
+      ),
+    },
+  ]
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden"
-      style={{ background: '#2b2b2b', color: '#a9b7c6' }}
+      style={{ background: '#1e1f22', color: '#a9b7c6' }}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
       <Header apiKey={apiKey} model={model} onApiKeyChange={handleApiKeyChange} onModelChange={handleModelChange} isEnvKey={isEnvKey} />
       <div className="flex flex-1 overflow-hidden">
-        <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} />
-        {/* 드래그 핸들 */}
+        {/* Left narrow tool window bar (IntelliJ style) */}
         <div
-          onMouseDown={onMouseDown}
-          style={{
-            width: 4,
-            flexShrink: 0,
-            background: isDragging.current ? '#4e9aea' : 'transparent',
-            cursor: 'col-resize',
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#4e9aea')}
-          onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
-        />
+          className="flex flex-col items-center py-1 flex-shrink-0 gap-0.5"
+          style={{ width: 36, background: '#2b2d30', borderRight: '1px solid #282828' }}
+        >
+          {toolWindowIcons.map((item, i) => (
+            <button
+              key={i}
+              title={item.title}
+              onClick={() => item.id !== undefined && setActiveToolWindow(activeToolWindow === item.id ? null : item.id)}
+              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              style={{
+                color: activeToolWindow === item.id ? '#4e9aea' : '#606366',
+                background: activeToolWindow === item.id ? 'rgba(78,154,234,0.15)' : 'transparent',
+              }}
+              onMouseEnter={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = '#393b40' }}
+              onMouseLeave={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = 'transparent' }}
+            >
+              {item.icon}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat panel (collapsible) */}
+        {activeToolWindow === 'chat' && (
+          <>
+            <ChatPanel messages={messages} onSend={handleSend} isLoading={isLoading} hasApiKey={!!apiKey} width={chatWidth} />
+            {/* Drag handle */}
+            <div
+              onMouseDown={onMouseDown}
+              style={{
+                width: 3,
+                flexShrink: 0,
+                background: 'transparent',
+                cursor: 'col-resize',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#4e9aea')}
+              onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'transparent' }}
+            />
+          </>
+        )}
+
         <PreviewPanel html={previewHtml} code={currentCode} isLoading={isLoading} />
       </div>
     </div>
