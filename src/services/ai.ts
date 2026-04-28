@@ -5,9 +5,9 @@ export interface Message {
 }
 
 export const MODELS = [
-  { id: 'grok-3-mini', label: 'Grok 3 Mini (무료)' },
-  { id: 'grok-3', label: 'Grok 3' },
-  { id: 'grok-2', label: 'Grok 2' },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (무료)' },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (빠름)' },
+  { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
 ]
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer who builds beautiful, interactive web UIs instantly from natural language descriptions.
@@ -44,7 +44,7 @@ export async function* streamCode(
       ? `\n\nThe user is refining their existing page. Current HTML:\n\`\`\`html\n${currentHtml}\n\`\`\``
       : '')
 
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
