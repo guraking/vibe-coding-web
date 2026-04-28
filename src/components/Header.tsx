@@ -8,9 +8,10 @@ interface Props {
   onApiKeyChange: (key: string) => void
   onModelChange: (model: string) => void
   isEnvKey?: boolean
+  isMobile?: boolean
 }
 
-export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey }: Props) {
+export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -21,9 +22,41 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
 
   return (
     <>
-      {/* Top bar — logo + subtitle + badges */}
+      {/* Top bar */}
       <div className="flex-shrink-0 select-none" style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        <div className="flex flex-col items-center justify-center py-4 gap-2">
+        {isMobile ? (
+          /* Mobile: single compact row */
+          <div className="flex items-center justify-between px-3" style={{ height: 48 }}>
+            <h1 className="pixel-logo" style={{ fontSize: '12px', lineHeight: 1.4 }}>VIBE</h1>
+            <div className="flex items-center gap-2">
+              <select
+                value={model}
+                onChange={e => onModelChange(e.target.value)}
+                className="appearance-none px-2 py-1 text-xs cursor-pointer focus:outline-none bg-transparent"
+                style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', border: '1px solid var(--border)', fontSize: 9 }}
+              >
+                {MODELS.map(m => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={isEnvKey ? undefined : open}
+                className="badge transition-opacity"
+                style={apiKey
+                  ? { background: 'var(--ok-bg)', border: '1px solid var(--ok-bd)', color: 'var(--ok)', cursor: isEnvKey ? 'default' : 'pointer' }
+                  : { background: 'var(--err-bg)', border: '1px solid var(--err-bd)', color: 'var(--err)', cursor: 'pointer' }
+                }
+              >
+                {apiKey
+                  ? <><CheckCircle2 style={{ width: 9, height: 9 }} /><span>key ok</span></>
+                  : <><KeyRound style={{ width: 9, height: 9 }} /><span>no key</span></>}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Desktop: full header */
+          <>
+            <div className="flex flex-col items-center justify-center py-4 gap-2">
           {/* Pixel logo */}
           <h1
             className="pixel-logo"
@@ -79,6 +112,8 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           <NavItem label="Chat" active />
           <NavItem label="Docs" href="https://console.groq.com/docs" />
         </div>
+          </>
+        )}
       </div>
 
       {showModal && (

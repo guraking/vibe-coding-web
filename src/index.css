@@ -91,3 +91,24 @@
   pointer-events: none;
   z-index: 0;
 }
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+  /* Larger tap targets */
+  button, select, input, textarea {
+    touch-action: manipulation;
+  }
+
+  /* Prevent input zoom on iOS (font-size >= 16px) */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Thinner scrollbar on mobile */
+  ::-webkit-scrollbar { width: 2px; height: 2px; }
+
+  /* Safe area support */
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

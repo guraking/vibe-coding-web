@@ -112,10 +112,11 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
   return (
     <div className="flex flex-col flex-shrink-0"
       style={{
-        width: width ?? 340,
-        minWidth: 220,
-        maxWidth: '60vw',
+        width: width ?? '100%',
+        minWidth: width ? 220 : undefined,
+        maxWidth: width ? '60vw' : undefined,
         background: 'var(--bg-panel)',
+        flex: width ? undefined : '1',
       }}>
 
       {/* Section header */}

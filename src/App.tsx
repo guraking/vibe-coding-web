@@ -5,6 +5,17 @@ import PreviewPanel from './components/PreviewPanel'
 import { streamCode, parseVibe, RateLimitError } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isMobile
+}
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
@@ -129,6 +140,18 @@ export default function App() {
   }
 
   const [activeToolWindow, setActiveToolWindow] = useState<'chat' | null>('chat')
+  const isMobile = useIsMobile()
+  const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat')
+
+  // auto-switch to preview on mobile when files are generated
+  const prevFilesLen = useRef(0)
+  useEffect(() => {
+    const len = Object.keys(projectFiles).length
+    if (isMobile && len > 0 && len !== prevFilesLen.current) {
+      setMobileTab('preview')
+    }
+    prevFilesLen.current = len
+  }, [projectFiles, isMobile])
 
   const toolWindowIcons = [
     {
@@ -211,12 +234,7 @@ export default function App() {
           projectType={projectType}
           previewVersion={previewVersion}
           isLoading={isLoading}
-          onImport={(importedFiles, importedType) => {
-            projectFilesRef.current = importedFiles
-            setProjectFiles(importedFiles)
-            setProjectType(importedType)
-            setPreviewVersion(v => v + 1)
-          }}
+          onImport={commonImport}
         />
       </div>
     </div>
