@@ -122,22 +122,11 @@ export default function App() {
         </svg>
       ),
     },
-    {
-      id: null as null,
-      title: 'Git',
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
-          <path d="M6 9v6M18 15v-3a3 3 0 0 0-3-3H9"/>
-        </svg>
-      ),
-    },
   ]
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
-      style={{ background: '#1e1f22', color: '#a9b7c6' }}
+      className="dark flex flex-col h-screen overflow-hidden bg-zinc-950 text-zinc-200"
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}

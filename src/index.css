@@ -1,80 +1,17 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* IntelliJ Darcula color tokens */
-    --ij-bg:           #2b2b2b;
-    --ij-bg2:          #313335;
-    --ij-panel:        #3c3f41;
-    --ij-toolbar:      #3c3f41;
-    --ij-tab-active:   #2b2b2b;
-    --ij-tab-bar:      #3c3f41;
-    --ij-border:       #515151;
-    --ij-border-light: #4a4a4a;
-    --ij-highlight:    #214283;
-    --ij-selection:    #2d5c8e;
-    --ij-accent:       #4e9aea;
-    --ij-accent2:      #9876aa;
-    --ij-green:        #499c54;
-    --ij-green2:       #6a8759;
-    --ij-orange:       #cc7832;
-    --ij-yellow:       #ffc66d;
-    --ij-red:          #ff6b68;
-    --ij-text:         #a9b7c6;
-    --ij-text-bright:  #bababa;
-    --ij-text-dim:     #606366;
-    --ij-text-dark:    #808080;
-    --ij-keyword:      #cc7832;
-    --ij-string:       #6a8759;
-    --ij-number:       #6897bb;
-    --ij-comment:      #808080;
-    --ij-button:       #4c5052;
-    --ij-button-hover: #5c6164;
-  }
+  * { box-sizing: border-box; }
 
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #515151 transparent;
-  }
-
-  *::-webkit-scrollbar { width: 8px; height: 8px; }
-  *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: #515151; border-radius: 4px; }
-  *::-webkit-scrollbar-thumb:hover { background: #6b6b6b; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
   body {
-    overflow: hidden;
-    background: var(--ij-bg);
-    color: var(--ij-text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    font-size: 13px;
-  }
-
-  .font-code {
-    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
-
-/* Message fade-in */
-@keyframes msg-in {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.msg-in { animation: msg-in 0.18s ease; }
-
-/* Tab animation */
-@keyframes tab-in {
-  from { opacity: 0; transform: translateX(-3px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.tab-in { animation: tab-in 0.15s ease; }
-
-/* Spinner dots */
-@keyframes ij-bounce {
-  0%, 80%, 100% { transform: scaleY(0.5); opacity: 0.4; }
-  40% { transform: scaleY(1); opacity: 1; }
-}
-
