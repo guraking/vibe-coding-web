@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import type { Message } from '../services/ai'
+﻿import { useState, useRef, useEffect } from "react"
+import type { Message } from "../services/ai"
 
 interface Props {
   messages: Message[]
@@ -9,172 +9,125 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  '투두 앱 만들어줘',
-  '쇼핑몰 랜딩 페이지 만들어줘',
-  '날씨 위젯 만들어줘',
-  '음악 플레이어 UI',
-  '대시보드 만들어줘',
-  '로그인 화면 만들어줘',
-  '계산기 앱',
-  '포트폴리오 페이지',
+  { icon: "📋", text: "투두 앱 만들어줘" },
+  { icon: "🛒", text: "쇼핑몰 랜딩 페이지" },
+  { icon: "🌤", text: "날씨 위젯 만들어줘" },
+  { icon: "🎵", text: "음악 플레이어 UI" },
+  { icon: "📊", text: "대시보드 만들어줘" },
+  { icon: "🔐", text: "로그인 화면 만들어줘" },
+  { icon: "🧮", text: "계산기 앱" },
+  { icon: "👤", text: "포트폴리오 페이지" },
 ]
 
-function ThreeDots() {
+function Spinner() {
   return (
-    <span className="inline-flex items-center gap-1">
-      {[0, 150, 300].map((delay) => (
-        <span
-          key={delay}
-          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-          style={{ animationDelay: `${delay}ms` }}
-        />
+    <span className="inline-flex gap-[3px] items-end h-3">
+      {[0, 80, 160].map((d) => (
+        <span key={d} className="inline-block w-[3px] rounded-sm animate-bounce" style={{ height: 10, background: "#007acc", animationDelay: `${d}ms`, animationDuration: "0.8s" }} />
       ))}
     </span>
   )
 }
 
 export default function ChatPanel({ messages, onSend, isLoading, hasApiKey }: Props) {
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   const submit = () => {
     const text = input.trim()
     if (!text || isLoading || !hasApiKey) return
     onSend(text)
-    setInput('')
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
+    setInput("")
+    if (textareaRef.current) textareaRef.current.style.height = "auto"
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      submit()
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit() }
   }
 
   const onInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
-    e.target.style.height = 'auto'
-    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+    e.target.style.height = "auto"
+    e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px"
   }
 
   return (
-    <div className="flex flex-col w-[380px] min-w-[300px] border-r border-gray-800 bg-gray-950">
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex flex-col flex-shrink-0" style={{ width: 340, minWidth: 260, borderRight: "1px solid #3c3c3c", background: "#252526" }}>
+      <div className="flex items-center justify-between px-3 flex-shrink-0 uppercase tracking-widest text-[10px] font-semibold" style={{ height: 36, color: "#bbb", borderBottom: "1px solid #1e1e1e" }}>
+        <span>CHAT</span>
+        {messages.length > 0 && (
+          <button onClick={() => window.location.reload()} className="text-[10px] normal-case tracking-normal transition-colors" style={{ color: "#858585" }} onMouseEnter={e => (e.currentTarget.style.color = "#cccccc")} onMouseLeave={e => (e.currentTarget.style.color = "#858585")} title="대화 초기화">
+            ↺ 초기화
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-5 py-6">
-            <div className="text-5xl">⚡</div>
-            <div>
-              <p className="text-white font-bold text-base mb-1">무엇을 만들까요?</p>
-              <p className="text-gray-500 text-sm">아이디어를 입력하면 즉시 만들어드립니다</p>
+          <div className="p-3">
+            <div className="mb-3 px-3 py-2 text-xs font-mono" style={{ color: "#6a9955" }}>
+              {"// 만들고 싶은 것을 선택하거나 직접 입력하세요"}
             </div>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setInput(s)
-                    textareaRef.current?.focus()
-                  }}
-                  className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-xs rounded-full transition-colors border border-gray-700 hover:border-gray-600"
-                >
-                  {s}
+            <div className="flex flex-col gap-0.5">
+              {SUGGESTIONS.map((s, i) => (
+                <button key={s.text} onClick={() => { setInput(s.text); textareaRef.current?.focus() }} className="flex items-center text-left text-xs px-2 py-1.5 transition-colors" style={{ color: "#cccccc" }} onMouseEnter={e => (e.currentTarget.style.background = "#094771")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                  <span className="select-none mr-4 text-right inline-block" style={{ color: "#858585", minWidth: 24 }}>{i + 1}</span>
+                  <span style={{ color: "#c586c0" }}>const </span>
+                  <span style={{ color: "#dcdcaa" }}>idea</span>
+                  <span style={{ color: "#cccccc" }}>{" = "}</span>
+                  <span style={{ color: "#ce9178" }}>{`"${s.text}"`}</span>
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <>
+          <div className="py-2">
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-xs flex-shrink-0">
-                    ⚡
-                  </div>
-                )}
-                <div
-                  className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-violet-600 text-white rounded-br-sm'
-                      : 'bg-gray-800 text-gray-200 rounded-bl-sm'
-                  }`}
-                >
-                  {msg.content ? (
-                    msg.content
-                  ) : (
-                    <span className="text-gray-500">
-                      <ThreeDots /> 생성 중...
-                    </span>
-                  )}
+              <div key={i} className="px-3 py-1.5 text-xs leading-relaxed" style={{ borderLeft: msg.role === "user" ? "2px solid #007acc" : "2px solid #4ec9b0", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: msg.role === "user" ? "#007acc" : "#4ec9b0" }}>
+                  <span className="font-semibold uppercase tracking-wider text-[10px]">{msg.role === "user" ? "▶ YOU" : "⚡ VIBE AI"}</span>
                 </div>
+                {msg.content ? (
+                  <p style={{ color: "#cccccc", paddingLeft: 12 }}>{msg.content}</p>
+                ) : (
+                  <span style={{ paddingLeft: 12 }}><Spinner /></span>
+                )}
               </div>
             ))}
-
-            {/* Typing indicator when waiting for first stream chunk */}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex items-end gap-2 justify-start">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-xs flex-shrink-0">
-                  ⚡
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
+              <div className="px-3 py-1.5 text-xs" style={{ borderLeft: "2px solid #4ec9b0" }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: "#4ec9b0" }}>
+                  <span className="font-semibold uppercase tracking-wider text-[10px]">⚡ VIBE AI</span>
                 </div>
-                <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
-                  <ThreeDots />
-                </div>
+                <div style={{ paddingLeft: 12 }}><Spinner /></div>
               </div>
             )}
-          </>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input bar */}
-      <div className="p-3 border-t border-gray-800 flex-shrink-0">
-        {!hasApiKey && (
-          <div className="mb-2 px-3 py-2 bg-red-900/20 border border-red-800/40 rounded-xl text-red-400 text-xs text-center">
-            상단의 ⚠️ 버튼을 눌러 API 키를 먼저 설정해주세요
+            <div ref={bottomRef} />
           </div>
         )}
-        <div className="flex items-end gap-2 bg-gray-800/80 border border-gray-700 rounded-2xl px-3 py-2 focus-within:border-violet-500 transition-colors">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={onInput}
-            onKeyDown={onKeyDown}
-            placeholder={
-              hasApiKey
-                ? '만들고 싶은 것을 설명하세요... (Enter 전송)'
-                : 'API 키를 먼저 설정해주세요'
-            }
-            disabled={!hasApiKey || isLoading}
-            rows={1}
-            className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm resize-none focus:outline-none min-h-[24px] max-h-[160px] disabled:opacity-40 leading-relaxed"
-          />
-          <button
-            onClick={submit}
-            disabled={!input.trim() || isLoading || !hasApiKey}
-            className="flex-shrink-0 w-8 h-8 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-700 disabled:opacity-40 rounded-xl flex items-center justify-center transition-all active:scale-95"
-          >
-            {isLoading ? (
-              <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-              </svg>
-            )}
+      </div>
+
+      <div className="flex-shrink-0" style={{ borderTop: "1px solid #3c3c3c" }}>
+        {!hasApiKey && (
+          <div className="px-3 py-2 text-xs font-mono" style={{ background: "rgba(244,71,71,0.08)", color: "#f44747", borderBottom: "1px solid #3c3c3c" }}>
+            {"⚠ API 키를 먼저 설정하세요 (우상단 버튼)"}
+          </div>
+        )}
+        <div className="flex items-end gap-0" style={{ background: "#1e1e1e" }}>
+          <span className="flex-shrink-0 pb-2.5 pl-3 text-xs font-mono select-none" style={{ color: "#4ec9b0", paddingTop: 10 }}>&gt;</span>
+          <textarea ref={textareaRef} value={input} onChange={onInput} onKeyDown={onKeyDown} placeholder={hasApiKey ? "만들고 싶은 것을 설명하세요..." : "API 키를 설정해주세요"} disabled={!hasApiKey || isLoading} rows={1} className="flex-1 bg-transparent text-xs font-mono resize-none focus:outline-none px-2 py-2.5 disabled:opacity-40 leading-relaxed" style={{ color: "#d4d4d4", maxHeight: 140, caretColor: "#007acc" }} />
+          <button onClick={submit} disabled={!input.trim() || isLoading || !hasApiKey} className="flex-shrink-0 px-3 py-2.5 text-xs transition-colors disabled:opacity-30 font-medium" style={{ color: "#007acc" }} onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.color = "#1177bb" }} onMouseLeave={e => (e.currentTarget.style.color = "#007acc")}>
+            {isLoading ? <Spinner /> : "↑ 실행"}
           </button>
         </div>
-        <p className="text-gray-600 text-xs mt-1.5 text-center">Shift+Enter 줄바꿈</p>
+        <div className="px-3 py-1 text-[10px] select-none" style={{ color: "#555", background: "#1e1e1e", borderTop: "1px solid #2a2a2a" }}>
+          Enter 전송 · Shift+Enter 줄바꿈
+        </div>
       </div>
     </div>
   )
