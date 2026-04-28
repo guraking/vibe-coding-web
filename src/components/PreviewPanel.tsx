@@ -378,7 +378,46 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
       <div className="flex-1 relative overflow-hidden">
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
-          {previewSrc ? (
+          {isLoading && !previewSrc ? (
+            /* AI 생성 중 */
+            <div className="flex-1 flex flex-col items-center justify-center gap-6" style={{ background: 'var(--bg)' }}>
+              <div className="relative flex items-center justify-center">
+                <div className="absolute w-20 h-20 rounded-full animate-pulse" style={{ background: 'var(--accent)', opacity: 0.1 }} />
+                <div style={{
+                  width: 64, height: 64,
+                  background: 'var(--accent-bg)',
+                  border: '2px solid var(--accent)',
+                  borderRadius: 8,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  position: 'relative',
+                }}>
+                  <Loader2 style={{ width: 32, height: 32, color: 'var(--accent)' }} className="animate-spin" />
+                </div>
+              </div>
+              <div className="text-center flex flex-col gap-2">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 14, fontWeight: 500, letterSpacing: 0.5 }}>
+                  AI 생성 <span style={{ fontStyle: 'italic', color: 'var(--accent)' }}>generating</span>
+                </p>
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 11, lineHeight: 1.6 }}>
+                  더 많은 파일을 만들고 있습니다
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {[0, 1, 2].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6, height: 6,
+                      background: 'var(--accent)',
+                      borderRadius: '50%',
+                      animation: `pulse 1.4s infinite`,
+                      animationDelay: `${i * 0.2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : previewSrc ? (
             <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
               className="w-full h-full border-0" allow="fullscreen" title="Preview" />
           ) : deployStep === 'checking' ? (
