@@ -119,15 +119,31 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             {"⚠ API 키를 먼저 설정하세요 (우상단 버튼)"}
           </div>
         )}
-        <div className="flex items-end gap-0" style={{ background: "#1e1e1e" }}>
-          <span className="flex-shrink-0 pb-2.5 pl-3 text-xs font-mono select-none" style={{ color: "#4ec9b0", paddingTop: 10 }}>&gt;</span>
-          <textarea ref={textareaRef} value={input} onChange={onInput} onKeyDown={onKeyDown} placeholder={hasApiKey ? "만들고 싶은 것을 설명하세요..." : "API 키를 설정해주세요"} disabled={!hasApiKey || isLoading} rows={1} className="flex-1 bg-transparent text-xs font-mono resize-none focus:outline-none px-2 py-2.5 disabled:opacity-40 leading-relaxed" style={{ color: "#d4d4d4", maxHeight: 140, caretColor: "#007acc" }} />
-          <button onClick={submit} disabled={!input.trim() || isLoading || !hasApiKey} className="flex-shrink-0 px-3 py-2.5 text-xs transition-colors disabled:opacity-30 font-medium" style={{ color: "#007acc" }} onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.color = "#1177bb" }} onMouseLeave={e => (e.currentTarget.style.color = "#007acc")}>
-            {isLoading ? <Spinner /> : "↑ 실행"}
-          </button>
-        </div>
-        <div className="px-3 py-1 text-[10px] select-none" style={{ color: "#555", background: "#1e1e1e", borderTop: "1px solid #2a2a2a" }}>
-          Enter 전송 · Shift+Enter 줄바꿈
+        <div className="flex flex-col gap-0" style={{ background: "#2d2d2d", margin: "8px", borderRadius: 6, border: "1px solid #3c3c3c" }}>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={onInput}
+            onKeyDown={onKeyDown}
+            placeholder={hasApiKey ? "만들고 싶은 것을 설명하세요..." : "API 키를 설정해주세요"}
+            disabled={!hasApiKey || isLoading}
+            rows={3}
+            className="bg-transparent resize-none focus:outline-none disabled:opacity-40 leading-relaxed w-full font-mono"
+            style={{ color: "#d4d4d4", maxHeight: 200, minHeight: 72, caretColor: "#007acc", fontSize: 13, padding: "10px 12px" }}
+          />
+          <div className="flex items-center justify-between px-3 pb-2">
+            <span className="text-[10px] select-none" style={{ color: "#555" }}>Enter 전송 · Shift+Enter 줄바꿈</span>
+            <button
+              onClick={submit}
+              disabled={!input.trim() || isLoading || !hasApiKey}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-30 rounded"
+              style={{ background: "#007acc", color: "#fff" }}
+              onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "#1177bb" }}
+              onMouseLeave={e => (e.currentTarget.style.background = "#007acc")}
+            >
+              {isLoading ? <Spinner /> : <>↑ 실행</>}
+            </button>
+          </div>
         </div>
       </div>
     </div>
