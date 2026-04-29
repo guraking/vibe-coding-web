@@ -38,21 +38,33 @@ export async function getGitHubUser(token: string): Promise<{ login: string; ava
  * GitHub Contents API는 파일 내용을 Base64로 전송해야 함
  * 한글 등 다국어 문자를 올바르게 처리
  * 
- * @param str - 인코딩할 UTF-8 문자열\n * @returns Base64로 인코딩된 문자열\n */
+ * @param str - 인코딩할 UTF-8 문자열
+ * @returns Base64로 인코딩된 문자열
+ */
 function toBase64(str: string): string {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))))
 }
 
 /**
  * 파일 경로에서 디렉터리 부분만 추출
- * 예: \"src/components/Button.jsx\" → \"src/components\"\n * @param path - 파일 경로\n * @returns 디렉터리 경로 (마지막 \"/\" 이전까지)\n */
+ * 예: "src/components/Button.jsx" → "src/components"
+ * @param path - 파일 경로
+ * @returns 디렉터리 경로 (마지막 "/" 이전까지)
+ */
 function dirname(path: string): string {
   const idx = path.lastIndexOf('/')
   return idx >= 0 ? path.slice(0, idx) : ''
 }
 
 /**
- * 상대 경로를 프로젝트 루트 기준 절대 경로로 변환\n * import 문의 상대 경로(./, ../)를 프로젝트 루트 기준 경로로 해석\n * 예: from=\"src/App.jsx\", rel=\"../utils/helpers\" → \"src/utils/helpers\"\n * \n * @param fromFile - 기준이 되는 파일 경로\n * @param rel - 상대 경로 (\"./\", \"../\" 포함)\n * @returns 프로젝트 루트 기준의 절대 경로\n */
+ * 상대 경로를 프로젝트 루트 기준 절대 경로로 변환
+ * import 문의 상대 경로(./, ../)를 프로젝트 루트 기준 경로로 해석
+ * 예: from="src/App.jsx", rel="../utils/helpers" → "src/utils/helpers"
+ * 
+ * @param fromFile - 기준이 되는 파일 경로
+ * @param rel - 상대 경로 ("./", "../" 포함)
+ * @returns 프로젝트 루트 기준의 절대 경로
+ */
 function resolveRelativePath(fromFile: string, rel: string): string {
   const base = dirname(fromFile)
   const parts = `${base}/${rel}`.split('/').filter(Boolean)
@@ -67,7 +79,13 @@ function resolveRelativePath(fromFile: string, rel: string): string {
 
 /**
  * Import 경로에서 가능한 파일 후보들 생성
-n * 확장자가 없는 import 경로에 대해 여러 가능한 확장자 조합 시도\n * 예: \"./Button\" → [\"./Button.js\", \"./Button/index.js\", \"./Button.jsx\", ...]\n * \n * @param fromFile - import를 포함한 소스 파일 경로\n * @param rel - Import 상대 경로 (확장자 포함/미포함)\n * @returns 가능한 파일 경로들의 배열 (우선순위 포함)\n */
+ * 확장자가 없는 import 경로에 대해 여러 가능한 확장자 조합 시도
+ * 예: "./Button" → ["./Button.js", "./Button/index.js", "./Button.jsx", ...]
+ * 
+ * @param fromFile - import를 포함한 소스 파일 경로
+ * @param rel - Import 상대 경로 (확장자 포함/미포함)
+ * @returns 가능한 파일 경로들의 배열 (우선순위 포함)
+ */
 function resolveImportCandidates(fromFile: string, rel: string): string[] {
   const base = resolveRelativePath(fromFile, rel)
   const extMatch = base.match(/\.[a-z0-9]+$/i)
@@ -89,7 +107,16 @@ function resolveImportCandidates(fromFile: string, rel: string): string[] {
 }
 
 /**
- * 누락된 import 모듈을 위한 폴백 파일 생성\n * 파일 확장자에 따라 적절한 빈 모듈 생성 (에러 방지용)\n * - .css: 빈 스타일 주석\n * - .vue: 빈 template 엘리먼트\n * - .tsx/.jsx: 빈 React 컴포넌트\n * - .ts/.js: 빈 CommonJS 모듈\n * \n * @param path - 생성할 폴백 파일 경로\n * @returns 파일 확장자에 맞는 빈 모듈 코드\n */
+ * 누락된 import 모듈을 위한 폴백 파일 생성
+ * 파일 확장자에 따라 적절한 빈 모듈 생성 (에러 방지용)
+ * - .css: 빈 스타일 주석
+ * - .vue: 빈 template 엘리먼트
+ * - .tsx/.jsx: 빈 React 컴포넌트
+ * - .ts/.js: 빈 CommonJS 모듈
+ * 
+ * @param path - 생성할 폴백 파일 경로
+ * @returns 파일 확장자에 맞는 빈 모듈 코드
+ */
 function makeFallbackModule(path: string): string {
   if (path.endsWith('.css')) return '/* generated missing import fallback */\n'
   if (path.endsWith('.vue')) {
@@ -102,7 +129,13 @@ function makeFallbackModule(path: string): string {
 }
 
 /**
- * 누락된 import된 모듈 자동 생성\n * 생성된 코드에서 import하지만 파일이 없는 경우 폴백 모듈 생성\n * JavaScript/TypeScript 파일들의 상대 import를 순회하며 확인\n * \n * @param files - AI가 생성한 파일 객체\n * @returns 누락된 모듈이 추가된 파일 객체\n */
+ * 누락된 import된 모듈 자동 생성
+ * 생성된 코드에서 import하지만 파일이 없는 경우 폴백 모듈 생성
+ * JavaScript/TypeScript 파일들의 상대 import를 순회하며 확인
+ * 
+ * @param files - AI가 생성한 파일 객체
+ * @returns 누락된 모듈이 추가된 파일 객체
+ */
 function ensureMissingImportedModules(files: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = { ...files }
   const sourceFiles = Object.keys(next).filter((p) => /\.(jsx?|tsx?|mjs|cjs|vue)$/i.test(p))
@@ -133,7 +166,13 @@ function ensureMissingImportedModules(files: Record<string, string>): Record<str
 }
 
 /**
- * CSS 문법 자동 수정\n * AI가 생성한 CSS에서 흔한 문법 오류를 자동으로 수정\n * 주요 수정: CSS 커스텀 프로퍼티 앞의 누락된 세미콜론\n * \n * @param content - 원본 CSS 코드\n * @returns 수정된 CSS 코드\n */
+ * CSS 문법 자동 수정
+ * AI가 생성한 CSS에서 흔한 문법 오류를 자동으로 수정
+ * 주요 수정: CSS 커스텀 프로퍼티 앞의 누락된 세미콜론
+ * 
+ * @param content - 원본 CSS 코드
+ * @returns 수정된 CSS 코드
+ */
 function repairCssSyntax(content: string): string {
   let out = content
   // 공통 LLM 오류: CSS 커스텀 프로퍼티 앞의 누락된 세미콜론
@@ -142,7 +181,14 @@ function repairCssSyntax(content: string): string {
 }
 
 /**
- * JavaScript/TypeScript 문법 자동 수정\n * AI가 생성한 코드에서 가장 흔한 LLM 오류 수정\n * 주요 수정: 배열 객체 요소의 누락된 여는 중괄호\n * 예: label: 'Home', href: '#' }, → { label: 'Home', href: '#' },\n * \n * @param content - 원본 JS/TS/JSX/TSX 코드\n * @returns 수정된 코드\n */
+ * JavaScript/TypeScript 문법 자동 수정 
+ * AI가 생성한 코드에서 가장 흔한 LLM 오류 수정
+ * 주요 수정: 배열 객체 요소의 누락된 여는 중괄호
+ * 예: label: 'Home', href: '#' }, → { label: 'Home', href: '#' },
+ * 
+ * @param content - 원본 JS/TS/JSX/TSX 코드
+ * @returns 수정된 코드
+ */
 function repairJsSyntax(content: string): string {
   const lines = content.split('\n')
   const fixed = lines.map((line) => {
@@ -342,7 +388,21 @@ function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = f
 }
 
 /**
- * GitHub에 새 저장소 생성 및 파일 업로드\n * \n * 처리 흐름:\n * 1. 토큰 유효성 검증 (getGitHubUser)\n * 2. 파일 정규화 (종속성, 빌드 설정 추가)\n * 3. GitHub 저장소 생성 (auto_init=false로 timing 이슈 방지)\n * 4. 파일들을 순차적으로 업로드 (Contents API)\n * 5. 첫 파일 업로드 시 초기 커밋 자동 생성\n * \n * @param token - GitHub Personal Access Token\n * @param repoName - 생성할 저장소 이름\n * @param files - 업로드할 파일 객체\n * @returns {{ owner, repo, branch, url }} 생성된 저장소 정보\n * @throws 저장소 생성 또는 파일 업로드 실패 시 에러\n */
+ * GitHub에 새 저장소 생성 및 파일 업로드
+ * 
+ * 처리 흐름:
+ * 1. 토큰 유효성 검증 (getGitHubUser)
+ * 2. 파일 정규화 (종속성, 빌드 설정 추가)
+ * 3. GitHub 저장소 생성 (auto_init=false로 timing 이슈 방지)
+ * 4. 파일들을 순차적으로 업로드 (Contents API)
+ * 5. 첫 파일 업로드 시 초기 커밋 자동 생성
+ * 
+ * @param token - GitHub Personal Access Token
+ * @param repoName - 생성할 저장소 이름
+ * @param files - 업로드할 파일 객체
+ * @returns {{ owner, repo, branch, url }} 생성된 저장소 정보
+ * @throws 저장소 생성 또는 파일 업로드 실패 시 에러
+ */
 export async function createRepoWithFiles(
   token: string,
   repoName: string,
@@ -420,7 +480,23 @@ export async function createRepoWithFiles(
 }
 
 /**
- * 기존 GitHub 저장소의 파일 업데이트\n * \n * 처리 흐름:\n * 1. 저장소 접근 가능성 확인\n * 2. 파일 정규화 (종속성, 빌드 설정 추가)\n * 3. 각 파일마다 기존 여부 확인 (SHA 조회)\n * 4. 신규 또는 기존 파일 업로드\n * 5. 변경 내역을 커밋으로 기록\n * \n * @param token - GitHub Personal Access Token\n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param branch - 대상 브랜치\n * @param files - 업로드할 파일 객체\n * @returns {{ owner, repo, branch, url }} 저장소 정보\n * @throws 저장소 접근 또는 파일 업로드 실패 시 에러\n */
+ * 기존 GitHub 저장소의 파일 업데이트
+ * 
+ * 처리 흐름:
+ * 1. 저장소 접근 가능성 확인
+ * 2. 파일 정규화 (종속성, 빌드 설정 추가)
+ * 3. 각 파일마다 기존 여부 확인 (SHA 조회)
+ * 4. 신규 또는 기존 파일 업로드
+ * 5. 변경 내역을 커밋으로 기록
+ * 
+ * @param token - GitHub Personal Access Token
+ * @param owner - 저장소 소유자
+ * @param repo - 저장소 이름
+ * @param branch - 대상 브랜치
+ * @param files - 업로드할 파일 객체
+ * @returns {{ owner, repo, branch, url }} 저장소 정보
+ * @throws 저장소 접근 또는 파일 업로드 실패 시 에러
+ */
 export async function updateRepoWithFiles(
   token: string,
   owner: string,
@@ -534,7 +610,10 @@ const CACHE_PREFIX = 'vibe_project_'
  * localStorage에서 캐시된 프로젝트 파일 조회
  * 빠른 재방문/새로고침 시 API 호출 없이 로컬 캐시 사용
  * 
- * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @returns 캐시된 프로젝트 정보 (파일, 타입, 브랜치, 캐시 시간)\n */
+ * @param owner - 저장소 소유자
+ * @param repo - 저장소 이름
+ * @returns 캐시된 프로젝트 정보 (파일, 타입, 브랜치, 캐시 시간)
+ */
 export function getCachedProject(owner: string, repo: string): ProjectCache | null {
   try {
     const raw = localStorage.getItem(`${CACHE_PREFIX}${owner}/${repo}`)
@@ -656,7 +735,17 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * 레거시 진입점 경로 자동 수정\n * GitHub Pages 배포 시 절대 경로(/src/main.jsx)에서 상대 경로(./src/main.jsx)로 변환\n * 기존 저장소의 index.html이 절대 경로 방식이면 자동으로 수정\n * 실패 시 무시 (배포 흐름에 영향 없음)\n * \n * @param token - GitHub Personal Access Token\n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param branch - 대상 브랜치\n * @param onStatus - 진행 상황 메시지 콜백\n */
+ * 레거시 진입점 경로 자동 수정
+ * GitHub Pages 배포 시 절대 경로(/src/main.jsx)에서 상대 경로(./src/main.jsx)로 변환
+ * 기존 저장소의 index.html이 절대 경로 방식이면 자동으로 수정
+ * 실패 시 무시 (배포 흐름에 영향 없음)
+ * 
+ * @param token - GitHub Personal Access Token
+ * @param owner - 저장소 소유자
+ * @param repo - 저장소 이름
+ * @param branch - 대상 브랜치
+ * @param onStatus - 진행 상황 메시지 콜백
+ */
 async function patchLegacyEntryScriptPath(
   token: string,
   owner: string,
@@ -705,7 +794,17 @@ async function patchLegacyEntryScriptPath(
 
 /**
  * GitHub Pages 배포용 GitHub Actions 워크플로우 YAML 생성
-n * \n * 기능:\n * - Push 또는 수동 workflow_dispatch 트리거\n * - npm ci/npm install으로 종속성 설치\n * - vite build 또는 npm run build로 빌드\n * - dist 디렉터리를 GitHub Pages 아티팩트로 업로드\n * - actions/deploy-pages로 자동 배포\n * \n * @param branch - 배포할 브랜치 이름\n * @param repo - 저장소 이름 (상대 경로 base 생성용)\n * @returns GitHub Actions 워크플로우 YAML 문자열\n */
+ * 기능:
+ * - Push 또는 수동 workflow_dispatch 트리거
+ * - npm ci/npm install으로 종속성 설치
+ * - vite build 또는 npm run build로 빌드
+ * - dist 디렉터리를 GitHub Pages 아티팩트로 업로드
+ * - actions/deploy-pages로 자동 배포
+ * 
+ * @param branch - 배포할 브랜치 이름
+ * @param repo - 저장소 이름 (상대 경로 base 생성용)
+ * @returns GitHub Actions 워크플로우 YAML 문자열
+ */
 function generateDeployWorkflow(branch: string, repo: string): string {
   return `name: Deploy to GitHub Pages
 on:
@@ -969,7 +1068,17 @@ export async function deployToGitHubPages(
 }
 
 /**
- * GitHub 배포 URL 탐색\n * \n * 우선순위:\n * 1. Deployments API → environment_url 또는 target_url\n * 2. GitHub Pages API → html_url\n * \n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param token - GitHub Personal Access Token (선택사항)\n * @returns 배포된 페이지 URL, 찾지 못하면 null\n */
+ * GitHub 배포 URL 탐색
+ * 
+ * 우선순위:
+ * 1. Deployments API → environment_url 또는 target_url
+ * 2. GitHub Pages API → html_url
+ * 
+ * @param owner - 저장소 소유자
+ * @param repo - 저장소 이름
+ * @param token - GitHub Personal Access Token (선택사항)
+ * @returns 배포된 페이지 URL, 찾지 못하면 null
+ */
 export async function fetchDeploymentUrl(
   owner: string,
   repo: string,
@@ -1018,7 +1127,16 @@ export async function fetchDeploymentUrl(
 /**
  * 프로젝트 타입 자동 감지
  * 
- * 감지 로직 (우선순위):\n * 1. .vue 파일 있으면 → vue\n * 2. .jsx, .tsx 파일 있으면 → react\n * 3. package.json에서 react 의존성 확인 → react\n * 4. package.json에서 vue 의존성 확인 → vue\n * 5. 그 외 → html\n * \n * @param files - 프로젝트 파일 객체\n * @returns 감지된 프로젝트 타입\n */
+ * 감지 로직 (우선순위):
+ * 1. .vue 파일 있으면 → vue
+ * 2. .jsx, .tsx 파일 있으면 → react
+ * 3. package.json에서 react 의존성 확인 → react
+ * 4. package.json에서 vue 의존성 확인 → vue
+ * 5. 그 외 → html
+ * 
+ * @param files - 프로젝트 파일 객체
+ * @returns 감지된 프로젝트 타입
+ */
 export function detectProjectType(files: Record<string, string>): 'html' | 'react' | 'vue' {
   const names = Object.keys(files)
   if (names.some(f => f.endsWith('.vue'))) return 'vue'

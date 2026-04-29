@@ -35,7 +35,9 @@ const SUGGESTIONS = [
 ]
 
 /**
- * 로딩 상태를 나타내는 애니메이션 점 표시\n * 스트리밍 중 AI가 응답을 생성 중임을 시각적으로 표현\n */
+ * 로딩 상태를 나타내는 애니메이션 점 표시
+ * 스트리밍 중 AI가 응답을 생성 중임을 시각적으로 표현
+ */
 function Dots() {
   return (
     <span className="inline-flex gap-1 items-center px-2 py-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-s)' }}>

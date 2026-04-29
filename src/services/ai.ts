@@ -23,7 +23,7 @@ export interface AIModel {
 }
 
 /**
- * Groq 니늤님찌 (33m24.4s 또는 45.2s) 형식을 초 단위로 변환
+ * Groq (33m24.4s 또는 45.2s) 형식을 초 단위로 변환
  */
 /**
  * Groq Rate Limit 에러 메시지에서 재시도 대기 시간 파싱
@@ -253,7 +253,15 @@ Vue mode rules:
  * - 현재 프로젝트 파일을 컨텍스트에 포함 (리파인용)
  * - 스트리밍 방식으로 응답을 실시간 처리
  * - 토큰 사용량 추적 및 콜백 제공
- * \n * @param provider - AI 제공자 (groq/openai/gemini)\n * @param apiKey - API 인증 키\n * @param model - 사용할 모델 ID\n * @param messages - 채팅 메시지 히스토리\n * @param currentFiles - 현재 프로젝트 파일들 (선택적)\n * @param onUsage - 토큰 사용량 업데이트 콜백\n * @returns 스트리밍 응답 청크들의 비동기 제너레이터\n */
+ * 
+ * @param provider - AI 제공자 (groq/openai/gemini)
+ * @param apiKey - API 인증 키
+ * @param model - 사용할 모델 ID
+ * @param messages - 채팅 메시지 히스토리
+ * @param currentFiles - 현재 프로젝트 파일들 (선택적)
+ * @param onUsage - 토큰 사용량 업데이트 콜백
+ * @returns 스트리밍 응답 청크들의 비동기 제너레이터
+ */
 export async function* streamCode(
   provider: AIProvider,
   apiKey: string,
@@ -414,7 +422,20 @@ export async function* streamCode(
  */
 /**
  * AI 응답을 파싱하여 파일과 프로젝트 타입 추출
- * \n * AI는 다음 형식으로 응답:\n * <VIBE_FILE name=\"파일명\">\n * 파일 내용\n * </VIBE_FILE>\n * <VIBE_TYPE>html|react|vue</VIBE_TYPE>\n * <VIBE_EXPLANATION>프로젝트 설명</VIBE_EXPLANATION>\n * \n * 스트리밍 중 부분 파싱도 지원 (완성되지 않은 형식도 처리)\n * Vue (.vue), React (.jsx/.tsx) 파일 확장자로 프로젝트 타입 자동 감지\n * \n * @param raw - 파싱할 원본 AI 응답 텍스트\n * @returns {{ files, explanation, projectType }} 파일 객체, 설명, 감지된 프로젝트 타입\n */
+ * 
+ * AI는 다음 형식으로 응답:
+ * <VIBE_FILE name=\"파일명\">
+ * 파일 내용
+ * </VIBE_FILE>
+ * <VIBE_TYPE>html|react|vue</VIBE_TYPE>
+ * <VIBE_EXPLANATION>프로젝트 설명</VIBE_EXPLANATION>
+ * 
+ * 스트리밍 중 부분 파싱도 지원 (완성되지 않은 형식도 처리)
+ * Vue (.vue), React (.jsx/.tsx) 파일 확장자로 프로젝트 타입 자동 감지
+ * 
+ * @param raw - 파싱할 원본 AI 응답 텍스트
+ * @returns {{ files, explanation, projectType }} 파일 객체, 설명, 감지된 프로젝트 타입
+ */
 export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' | 'vue' } {
   const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([/\s\S]*?)<\/VIBE_FILE>/g)]
   const explMatch = raw.match(/<VIBE_EXPLANATION>([\s\S]*?)<\/VIBE_EXPLANATION>/)
