@@ -2,6 +2,17 @@
 import { Send, RotateCcw, AlertCircle, Terminal, Clock } from 'lucide-react'
 import type { Message, TokenUsage } from '../services/ai'
 
+/**
+ * ChatPanel 컴포넌트: 좌측 채팅 패널
+ * 
+ * 주요 기능:
+ * - AI에 프롬프트 전송 (Shift+Enter로 개행)
+ * - 채팅 메시지 히스토리 표시 (사용자/AI)
+ * - 토큰 사용량 실시간 추적
+ * - Groq Rate Limit 표시 (일일 한도 도달 시)
+ * - 빠른 시작 제안 버튼 (empty state)
+ * - 새 세션 시작 버튼 (refresh)
+ */
 interface Props {
   messages: Message[]
   onSend: (prompt: string) => void
@@ -23,6 +34,8 @@ const SUGGESTIONS = [
   { label: 'portfolio', desc: '포트폴리오 페이지' },
 ]
 
+/**
+ * 로딩 상태를 나타내는 애니메이션 점 표시\n * 스트리밍 중 AI가 응답을 생성 중임을 시각적으로 표현\n */
 function Dots() {
   return (
     <span className="inline-flex gap-1 items-center px-2 py-1" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-s)' }}>

@@ -4,6 +4,15 @@ import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
 
+/**
+ * PreviewPanel 컴포넌트: 우측 코드/미리보기 패널
+ * 
+ * 주요 기능:
+ * - 두 개 탭: Preview (미리보기), Code (코드 보기)
+ * - HTML: 로컬 blob URL로 즉시 렌더링
+ * - React/Vue: GitHub Pages 배포 후 배포 URL로 렌더링
+ * - 파일 트리 뷰 (좌측, 너비 조정 가능)
+ * - 코드 하이라이팅 및 복사 기능\n * - GitHub 프로젝트 import/export\n * - GitHub Pages 자동 배포 및 배포 히스토리\n */
 interface Props {
   files: Record<string, string>
   projectType: 'html' | 'react' | 'vue'

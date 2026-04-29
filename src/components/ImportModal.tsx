@@ -2,6 +2,17 @@ import { useRef, useState } from 'react'
 import { FolderGit2, Loader2, X, KeyRound, ExternalLink } from 'lucide-react'
 import { fetchRepoFiles, detectProjectType } from '../services/github'
 
+/**
+ * ImportModal 컴포넌트: GitHub 프로젝트 가져오기
+ * 
+ * 기능:
+ * - GitHub 토큰 입력/저장
+ * - 저장소 주소 입력 (owner/repo 형식)
+ * - 선택 사항: 브랜치명 입력 (기본값: main)
+ * - 저장소 파일 가져오기
+ * - 프로젝트 타입 자동 감지 (HTML/React/Vue)
+ * - 가져온 파일들을 메인 에디터로 로드
+ */
 interface Props {
   onClose: () => void
   onSuccess: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => void

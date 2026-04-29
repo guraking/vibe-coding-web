@@ -2,6 +2,16 @@ import { useRef, useState } from 'react'
 import { GitFork, Loader2, X, ExternalLink, KeyRound } from 'lucide-react'
 import { createRepoWithFiles, updateRepoWithFiles } from '../services/github'
 
+/**
+ * ExportModal 컴포넌트: GitHub 프로젝트 내보내기
+ * 
+ * 기능:
+ * - GitHub 토큰 입력/저장
+ * - 저장소 이름 입력
+ * - 신규 저장소 생성 또는 기존 저장소 업데이트
+ * - 배포 진행률 표시
+ * - 생성/업데이트 완료 후 GitHub URL로 이동
+ */
 interface Props {
   files: Record<string, string>
   githubRepo?: { owner: string; repo: string; branch: string } | null
