@@ -392,6 +392,11 @@ export default function App() {
     setProjectType(importedType)
   }
 
+  const handleFilesChange = (nextFiles: Record<string, string>) => {
+    projectFilesRef.current = nextFiles
+    setProjectFiles(nextFiles)
+  }
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden"
@@ -438,6 +443,7 @@ export default function App() {
           projectType={projectType}
           isLoading={isLoading}
           onImport={handleImportProject}
+          onFilesChange={handleFilesChange}
         />
       </div>
     </div>

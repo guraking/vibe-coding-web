@@ -18,6 +18,7 @@ interface Props {
   projectType: 'html' | 'react' | 'vue'
   isLoading: boolean
   onImport: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue') => void
+  onFilesChange: (files: Record<string, string>) => void
 }
 
 type GithubRepo = { owner: string; repo: string; branch: string }
@@ -174,7 +175,7 @@ function PixelLoadingBar({
   )
 }
 
-export default function PreviewPanel({ files, projectType, isLoading, onImport }: Props) {
+export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   const [selectedFile, setSelectedFile] = useState('index.html')
   const [copied, setCopied] = useState(false)
@@ -204,6 +205,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const deployStepRef = useRef(deployStep)
   useEffect(() => { deployStepRef.current = deployStep }, [deployStep])
   const [fileListWidth, setFileListWidth] = useState(220)
+  const [saveLabel, setSaveLabel] = useState<'auto-save' | 'saved'>('auto-save')
+  const saveBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const codeTabRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
   const dragStartXRef = useRef(0)
@@ -253,6 +256,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     return () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
       if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+      if (saveBadgeTimerRef.current) clearTimeout(saveBadgeTimerRef.current)
     }
   }, [])
 
@@ -291,6 +295,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
 
   const selectedContent = files[selectedFile] || ''
   const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
+  const selectedLineCount = Math.max(1, selectedContent.split('\n').length)
   const repoDeployHistory = useMemo(() => {
     if (!githubRepo) return []
     return deployHistory.filter((h) => h.owner === githubRepo.owner && h.repo === githubRepo.repo)
@@ -320,6 +325,15 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const copyFile = async () => {
     await navigator.clipboard.writeText(selectedContent)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  const updateSelectedFileContent = (nextContent: string) => {
+    if (!selectedFile) return
+    const nextFiles = { ...files, [selectedFile]: nextContent }
+    onFilesChange(nextFiles)
+    setSaveLabel('saved')
+    if (saveBadgeTimerRef.current) clearTimeout(saveBadgeTimerRef.current)
+    saveBadgeTimerRef.current = setTimeout(() => setSaveLabel('auto-save'), 1500)
   }
   const copyDeployUrl = async () => {
     if (!deployUrl) return
@@ -876,25 +890,43 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                 style={{ width: 1, cursor: 'col-resize', background: 'var(--border)' }}
                 title="Drag to resize file list"
               />
-              <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-                <table className="w-full border-collapse min-w-full">
-                  <tbody>
-                    {selectedContent.split('\n').map((line, i) => (
-                      <tr key={i} className="transition-colors"
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-panel)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                        <td className="text-right select-none align-top py-px pl-4 pr-4"
-                          style={{ color: 'var(--txt-3)', borderRight: '1px solid var(--border-s)', minWidth: '3rem', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+              <div className="flex-1 overflow-hidden" style={{ background: 'var(--bg)' }}>
+                <div className="flex items-center justify-between px-3"
+                  style={{ height: 28, borderBottom: '1px solid var(--border-s)', background: 'var(--bg-panel)' }}>
+                  <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                    editing: {selectedFile}
+                  </span>
+                  <span style={{ color: saveLabel === 'saved' ? 'var(--ok)' : 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                    {saveLabel}
+                  </span>
+                </div>
+                <div className="flex h-full">
+                  <div className="overflow-hidden select-none"
+                    style={{ width: 56, borderRight: '1px solid var(--border-s)', background: 'var(--bg-panel)' }}>
+                    <div className="h-full overflow-auto px-2 py-2">
+                      {Array.from({ length: selectedLineCount }).map((_, i) => (
+                        <div key={i}
+                          style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.6, textAlign: 'right' }}>
                           {i + 1}
-                        </td>
-                        <td className="align-top py-px pl-4 pr-8 whitespace-pre-wrap break-all"
-                          style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 11 }}>
-                          {line || ' '}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <textarea
+                    value={selectedContent}
+                    onChange={(e) => updateSelectedFileContent(e.target.value)}
+                    spellCheck={false}
+                    className="flex-1 w-full h-full resize-none outline-none"
+                    style={{
+                      background: 'var(--bg)',
+                      color: 'var(--txt-2)',
+                      fontFamily: 'var(--mono-font)',
+                      fontSize: 11,
+                      lineHeight: 1.6,
+                      padding: '8px 12px',
+                    }}
+                  />
+                </div>
               </div>
             </>
           ) : (

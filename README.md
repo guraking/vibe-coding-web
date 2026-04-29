@@ -63,6 +63,32 @@ npm run dev
 npm run build
 ```
 
+## 배포 (GitHub Push 자동 배포)
+
+이 프로젝트는 `main` 브랜치에 `push`하면 GitHub Actions로 자동 배포되도록 설정되어 있습니다.
+
+### 1. 원격 저장소 연결
+
+```bash
+git remote add origin https://github.com/<your-id>/<your-repo>.git
+```
+
+### 2. GitHub Pages 설정
+
+GitHub 저장소 설정에서 아래를 확인하세요.
+
+- `Settings > Pages > Build and deployment > Source`: `GitHub Actions`
+
+### 3. 푸시 배포
+
+```bash
+git add .
+git commit -m "chore: deploy setup"
+git push origin main
+```
+
+배포는 `Actions` 탭에서 진행 상황을 볼 수 있고, 완료되면 `Settings > Pages`에서 배포 URL을 확인할 수 있습니다.
+
 ## 사용 방법
 
 1. 상단에서 AI 공급자(Groq / ChatGPT / Gemini)를 선택하고 모델을 선택합니다.
