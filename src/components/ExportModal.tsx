@@ -1,12 +1,20 @@
-import { useRef, useState } from 'react'
-import { GitFork, Loader2, X, ExternalLink, KeyRound } from 'lucide-react'
-import { createRepoWithFiles, updateRepoWithFiles } from '../services/github'
+/**
+ * GitHub 저장소 낵보내 모달 컴포넌트
+ * 기존 저장소 업데이트 또는 새 저장소 생성
+ */
 
+import { useRef, useState } from 'react'
+import { GitFork, Loader2, X, ExternalLink, KeyRound } from 'lucide-react'  // UI 아이콘
+import { createRepoWithFiles, updateRepoWithFiles } from '../services/github'  // GitHub API
+
+/**
+ * ExportModal Props 인터페이스
+ */
 interface Props {
-  files: Record<string, string>
-  githubRepo?: { owner: string; repo: string; branch: string } | null
-  onClose: () => void
-  onSuccess: (owner: string, repo: string, branch: string, token: string) => void
+  files: Record<string, string>  // 낵보내들 파일들
+  githubRepo?: { owner: string; repo: string; branch: string } | null  // 기존 GitHub 저장소 (선택)
+  onClose: () => void  // 모달 닫기 콜백
+  onSuccess: (owner: string, repo: string, branch: string, token: string) => void  // 낵보내기 성공 콜백
 }
 
 function loadPersistedRepo(): { owner: string; repo: string; branch: string } | null {

@@ -1,5 +1,12 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap');
+﻿/**
+ * 전역 스타일시트
+ * Tailwind CSS와 커스텀 CSS 변수, 픽셀 폰트를 정의합니다.
+ */
 
+/* Google Fonts 임포트 - 픽셀 스타일 폰트와 모노스페이스 폰트 */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* Tailwind CSS 기본 스타일, 컴포넌트, 유틸리티 클래스 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

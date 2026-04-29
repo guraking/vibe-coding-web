@@ -1,14 +1,22 @@
+/**
+ * AI 낵아 메시지 인터페이스
+ * role: 'user' 또는 'assistant'를 구분
+ */
 export interface Message {
   role: 'user' | 'assistant'
   content: string
-  files?: Record<string, string>
-  projectType?: 'html' | 'react' | 'vue'
+  files?: Record<string, string>  // 지너레이트된 파일들
+  projectType?: 'html' | 'react' | 'vue'  // 낵너레이트된 프로젝트 타입
 }
 
+/**
+ * 토큰 사용땠 인터페이스
+ * API 호출 단위로 단초단 토큰을 추적랐나
+ */
 export interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
+  promptTokens: number  // 입력 토큰 수
+  completionTokens: number  // 출력 토큰 수
+  totalTokens: number  // 총 토큰 수
   /** 분당 한도 (-1 = 정보 없음) */
   limitPerMin: number
   /** 분당 남은 토큰 (-1 = 정보 없음) */
@@ -17,15 +25,23 @@ export interface TokenUsage {
   resetInSeconds: number
 }
 
+/**
+ * 지원하는 AI 제공업체 타입
+ */
 export type AIProvider = 'groq' | 'openai' | 'gemini'
 
+/**
+ * AI 모델 메타데이타
+ */
 export interface AIModel {
-  id: string
-  label: string
-  provider: AIProvider
+  id: string  // 모델 ID
+  label: string  // 두표드를 위한 라벨
+  provider: AIProvider  // 기반 제공업체
 }
 
-/** "33m24.4s" 또는 "45.2s" 형태의 Groq retry 문자열을 초로 변환 */
+/**
+ * Groq 니늤님찌 (33m24.4s 또는 45.2s) 형식을 초 단위로 변환
+ */
 function parseRetrySeconds(msg: string): number {
   const m = msg.match(/try again in (\d+)m([\d.]+)s/)
   if (m) return Math.ceil(parseInt(m[1], 10) * 60 + parseFloat(m[2]))
@@ -366,6 +382,12 @@ export async function* streamCode(
   }
 }
 
+/**
+ * AI 응답을 파싱하여 파일과 프로젝트 타입 추출
+ * <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식 파싱
+ * @param raw - 파싱할 원본 AI 응답
+ * @returns 파일, 설명, 프로젝트 타입
+ */
 export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' | 'vue' } {
   const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([/\s\S]*?)<\/VIBE_FILE>/g)]
   const explMatch = raw.match(/<VIBE_EXPLANATION>([\s\S]*?)<\/VIBE_EXPLANATION>/)

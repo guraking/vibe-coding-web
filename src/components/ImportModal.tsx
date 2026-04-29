@@ -1,10 +1,18 @@
+/**
+ * GitHub 저장소에서 프로젝트 가져오기 모달 컴포넌트
+ * 저장소 URL 입력 및 파일 로드
+ */
+
 import { useRef, useState } from 'react'
 import { FolderGit2, Loader2, X, KeyRound, ExternalLink } from 'lucide-react'
 import { fetchRepoFiles, detectProjectType } from '../services/github'
 
+/**
+ * ImportModal Props 인터페이스
+ */
 interface Props {
-  onClose: () => void
-  onSuccess: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => void
+  onClose: () => void  // 모달 닫기 콜백
+  onSuccess: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => void  // 가져오기 성공 콜백
 }
 
 export default function ImportModal({ onClose, onSuccess }: Props) {

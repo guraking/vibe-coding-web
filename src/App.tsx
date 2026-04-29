@@ -1,7 +1,20 @@
+/**
+ * 메인 애플리케이션 컴포넌트
+ * 
+ * 기능:
+ * - AI 챗 인터페이스 (좌측)
+ * - 코드 미리보기 패널 (우측)
+ * - 리얼타임 코드 스트리밍 및 렌더링
+ * - 여러 AI 제공자 지원 (Groq, OpenAI, Gemini)
+ * - 프로젝트 타입 자동 감지 (HTML, React, Vue)
+ * - 드래그 가능한 패널 리사이저
+ */
+
 import { useState, useRef, useCallback, useEffect } from 'react'
-import Header from './components/Header'
-import ChatPanel from './components/ChatPanel'
-import PreviewPanel from './components/PreviewPanel'
+import Header from './components/Header'  // 상단 헤더 (로고, 설정, API 키)
+import ChatPanel from './components/ChatPanel'  // 좌측 채팅 패널
+import PreviewPanel from './components/PreviewPanel'  // 우측 코드 미리보기 패널
+// AI 서비스 함수들 (스트리밍, 파싱, 모델 정보)
 import { streamCode, parseVibe, RateLimitError, getDefaultModel, getModelsByProvider } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
 import type { AIProvider } from './services/ai'
@@ -31,6 +44,10 @@ function fingerprintFiles(files: Record<string, string>): string {
 
 const REALTIME_PATCH_THROTTLE_MS = 150
 
+/**
+ * App 컴포넌트
+ * 전체 애플리케이션의 메인 컴포넌트
+ */
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
@@ -38,10 +55,8 @@ export default function App() {
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
-  // timestamp(ms) until which requests are blocked due to rate limit
   const [retryAt, setRetryAt] = useState<number | null>(null)
 
-  // clear retryAt once time passes
   useEffect(() => {
     if (!retryAt) return
     const remaining = retryAt - Date.now()
@@ -91,12 +106,11 @@ export default function App() {
   const activeApiKey = apiKeys[provider]
   const activeModel = modelByProvider[provider]
 
-  // 드래그 리사이저
+  // Resizable chat panel state
   const [chatWidth, setChatWidth] = useState(340)
   const isDragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)
-
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true
     startX.current = e.clientX
@@ -104,20 +118,17 @@ export default function App() {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }, [chatWidth])
-
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current) return
     const delta = e.clientX - startX.current
     const next = Math.max(200, Math.min(startWidth.current + delta, window.innerWidth * 0.6))
     setChatWidth(next)
   }, [])
-
   const onMouseUp = useCallback(() => {
     isDragging.current = false
     document.body.style.cursor = ''
     document.body.style.userSelect = ''
   }, [])
-
   const applyRealtimePatch = useCallback((
     files: Record<string, string>,
     pType: 'html' | 'react' | 'vue',
@@ -145,7 +156,6 @@ export default function App() {
       }
     }
   }, [])
-
   const handleApiKeyChange = (targetProvider: AIProvider, key: string) => {
     setApiKeys((prev) => ({ ...prev, [targetProvider]: key }))
     localStorage.setItem(`vibe_api_key_${targetProvider}`, key)
@@ -160,7 +170,6 @@ export default function App() {
     setModelByProvider((prev) => ({ ...prev, [targetProvider]: nextModel }))
     localStorage.setItem(`vibe_model_${targetProvider}`, nextModel)
   }
-
   const handleSend = async (prompt: string) => {
     if (!activeApiKey || isLoading || (provider === 'groq' && retryAt)) return
     const userMsg: Message = { role: 'user', content: prompt }
@@ -183,7 +192,7 @@ export default function App() {
         const parsedChunk = parseVibe(bufferRef.current)
         const { explanation } = parsedChunk
 
-        // Realtime patch: reflect generated files in Code tab while streaming.
+        // Real-time patch: update code preview while streaming
         if (Object.keys(parsedChunk.files).length > 0) {
           const nextFingerprint = fingerprintFiles(parsedChunk.files)
           if (nextFingerprint !== lastRealtimePatchRef.current) {
@@ -218,7 +227,7 @@ export default function App() {
 
       let parsed = parseVibe(bufferRef.current)
 
-      // 일부 모델이 설명문 위주로 응답하는 경우 한 번 자동 보정 재시도
+        // Auto-repair response format if model didn't generate valid code structure
       if (!isValidGeneratedProject(parsed.files, parsed.projectType)) {
         const repairPrompt = [
           '아래 원문 응답은 형식이 깨졌거나 코드가 부족합니다.',
@@ -309,37 +318,15 @@ export default function App() {
     }
   }
 
-  const [activeToolWindow, setActiveToolWindow] = useState<'chat' | null>('chat')
-
-  const commonImport = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue') => {
+  /**
+   * 프로젝트 가져오기 핸들러
+   * GitHub에서 가져온 프로젝트를 UI에 로드
+   */
+  const handleImportProject = (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue') => {
     projectFilesRef.current = importedFiles
     setProjectFiles(importedFiles)
     setProjectType(importedType)
   }
-
-  const toolWindowIcons = [
-    {
-      id: 'chat' as const,
-      title: 'AI Chat',
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.9"/>
-          <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/>
-          <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/>
-          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.3"/>
-        </svg>
-      ),
-    },
-    {
-      id: null as null,
-      title: 'Structure',
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      ),
-    },
-  ]
 
   return (
     <div
@@ -358,62 +345,35 @@ export default function App() {
         isEnvKeyByProvider={isEnvKeyByProvider}
       />
       <div className="flex flex-1 overflow-hidden">
-        {/* Left narrow tool window bar (IntelliJ style) */}
+        {/* Chat panel with drag handle */}
+        <ChatPanel
+          messages={messages}
+          onSend={handleSend}
+          isLoading={isLoading}
+          hasApiKey={!!activeApiKey}
+          width={chatWidth}
+          tokenUsage={tokenUsage}
+          retryAt={provider === 'groq' ? retryAt : null}
+        />
+        {/* Drag handle */}
         <div
-          className="flex flex-col items-center py-1 flex-shrink-0 gap-0.5"
-          style={{ width: 36, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)' }}
-        >
-          {toolWindowIcons.map((item, i) => (
-            <button
-              key={i}
-              title={item.title}
-              onClick={() => item.id !== undefined && setActiveToolWindow(activeToolWindow === item.id ? null : item.id)}
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
-              style={{
-                color: activeToolWindow === item.id ? 'var(--accent)' : 'var(--txt-3)',
-                background: activeToolWindow === item.id ? 'var(--accent-bg)' : 'transparent',
-              }}
-              onMouseEnter={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = 'var(--bg-hover)' }}
-              onMouseLeave={e => { if (activeToolWindow !== item.id) e.currentTarget.style.background = 'transparent' }}
-            >
-              {item.icon}
-            </button>
-          ))}
-        </div>
-
-        {/* Chat panel (collapsible) */}
-        {activeToolWindow === 'chat' && (
-          <>
-            <ChatPanel
-              messages={messages}
-              onSend={handleSend}
-              isLoading={isLoading}
-              hasApiKey={!!activeApiKey}
-              width={chatWidth}
-              tokenUsage={tokenUsage}
-              retryAt={provider === 'groq' ? retryAt : null}
-            />
-            {/* Drag handle */}
-            <div
-              onMouseDown={onMouseDown}
-              style={{
-                width: 1,
-                flexShrink: 0,
-                background: 'var(--border)',
-                cursor: 'col-resize',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
-              onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
-            />
-          </>
-        )}
-
+          onMouseDown={onMouseDown}
+          style={{
+            width: 1,
+            flexShrink: 0,
+            background: 'var(--border)',
+            cursor: 'col-resize',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
+          onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
+        />
+        {/* Code preview panel */}
         <PreviewPanel
           files={projectFiles}
           projectType={projectType}
           isLoading={isLoading}
-          onImport={commonImport}
+          onImport={handleImportProject}
         />
       </div>
     </div>
