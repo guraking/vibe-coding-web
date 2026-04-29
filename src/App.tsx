@@ -19,10 +19,22 @@ import { streamCode, parseVibe, RateLimitError, getDefaultModel, getModelsByProv
 import type { Message, TokenUsage } from './services/ai'
 import type { AIProvider } from './services/ai'
 
+/**
+ * HTML 마크업 판별 함수
+ * AI 응답이 HTML 구조를 포함하는지 정규식으로 확인
+ * 주요 HTML 태그의 존재 여부로 판단
+ */
 function isLikelyMarkup(text: string): boolean {
   return /<!doctype|<html|<body|<main|<div|<section|<script|<style/i.test(text)
 }
 
+/**
+ * 생성된 프로젝트 유효성 검증 함수
+ * 프로젝트 타입별 필수 파일이 모두 존재하는지 확인
+ * - HTML: index.html + HTML 마크업 구조
+ * - React: package.json + src/main.jsx(tsx) + src/App.jsx(tsx)
+ * - Vue: package.json + src/main.js(ts) + src/App.vue
+ */
 function isValidGeneratedProject(files: Record<string, string>, projectType: 'html' | 'react' | 'vue'): boolean {
   if (Object.keys(files).length === 0) return false
   if (projectType === 'html') {
@@ -37,11 +49,22 @@ function isValidGeneratedProject(files: Record<string, string>, projectType: 'ht
   return Boolean(files['package.json']) && hasMain && Boolean(files['src/App.vue'])
 }
 
+/**
+ * 파일 세트의 핑거프린트(지문) 생성 함수
+ * 파일 이름과 크기로 고유한 문자열을 생성하여
+ * 실시간 패치 시 파일 변경 여부를 빠르게 감지
+ * 예: \"index.html:2048|style.css:512|app.js:1024\"
+ */
 function fingerprintFiles(files: Record<string, string>): string {
   const names = Object.keys(files).sort()
   return names.map((name) => `${name}:${files[name]?.length ?? 0}`).join('|')
 }
 
+/**
+ * 상수: 실시간 패치 업데이트 쓰로틀 시간
+ * 스트리밍 중 150ms 이상 간격으로만 Preview 업데이트
+ * 과도한 리렌더링 방지를 위한 성능 최적화
+ */
 const REALTIME_PATCH_THROTTLE_MS = 150
 
 /**
@@ -107,10 +130,21 @@ export default function App() {
   const activeModel = modelByProvider[provider]
 
   // Resizable chat panel state
+  // 드래그 가능한 패널 리사이저 상태
+  // chatWidth: 채팅 패널의 현재 너비(px)
+  // isDragging: 드래그 중 여부 플래그
+  // startX: 드래그 시작 시 마우스 X 좌표
+  // startWidth: 드래그 시작 시 초기 패널 너비
   const [chatWidth, setChatWidth] = useState(340)
   const isDragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)
+
+  /**
+   * 드래그 시작 핸들러
+   * 마우스 클릭 시 드래그 초기 상태 저장
+   * 커서를 col-resize로 변경하고 텍스트 선택 방지
+   */
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true
     startX.current = e.clientX
@@ -118,12 +152,23 @@ export default function App() {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }, [chatWidth])
+
+  /**
+   * 마우스 이동 핸들러
+   * 드래그 중일 때만 활성화되어 패널 너비를 실시간으로 계산 및 업데이트
+   * 최소 200px 이상, 최대 화면 너비 60% 범위로 제한
+   */
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current) return
     const delta = e.clientX - startX.current
     const next = Math.max(200, Math.min(startWidth.current + delta, window.innerWidth * 0.6))
     setChatWidth(next)
   }, [])
+
+  /**
+   * 마우스 릴리즈 핸들러
+   * 드래그 종료 시 드래그 상태 해제 및 커서/텍스트 선택 복원
+   */
   const onMouseUp = useCallback(() => {
     isDragging.current = false
     document.body.style.cursor = ''
@@ -170,6 +215,25 @@ export default function App() {
     setModelByProvider((prev) => ({ ...prev, [targetProvider]: nextModel }))
     localStorage.setItem(`vibe_model_${targetProvider}`, nextModel)
   }
+  /**
+   * AI 코드 생성 메인 로직
+   * 
+   * 처리 흐름:
+   * 1. 유효성 검증 (API 키 존재, 로딩 중 아님, 레이트 리미트 확인)
+   * 2. 사용자 메시지를 채팅 히스토리에 추가
+   * 3. streamCode() async generator로 AI 스트리밍 시작
+   * 4. 스트리밍 청크를 parseVibe()로 파싱하여 파일과 설명 추출
+   * 5. 실시간 패치 적용 (150ms 쓰로틀)
+   *    - 스트리밍 중 코드를 PreviewPanel에 즉시 반영
+   *    - 과도한 렌더링 방지를 위해 쓰로틀링 적용
+   * 6. 최종 코드와 설명을 메시지에 저장
+   * 7. 형식 오류 처리 (자동 재생성)
+   *    - <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식 검증
+   *    - 필수 파일 부족 시 AI에 재생성 요청
+   * 8. 에러 처리
+   *    - Groq 레이트 리미트: retryAt 설정하여 사용자에게 재시도 가능 시간 표시
+   *    - 기타 에러: 에러 메시지를 채팅에 표시
+   */
   const handleSend = async (prompt: string) => {
     if (!activeApiKey || isLoading || (provider === 'groq' && retryAt)) return
     const userMsg: Message = { role: 'user', content: prompt }
