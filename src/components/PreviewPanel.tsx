@@ -85,6 +85,22 @@ function bundleFiles(files: Record<string, string>): string {
   if (!html.includes('cdn.tailwindcss.com')) {
     html = html.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
   }
+
+  // bare module specifier가 있는 경우 importmap으로 CDN 주소 매핑 (브라우저 호환)
+  const hasBareImport = /import\s+.*from\s+['"](?!https?:\/\/|\/|\.\/|\.\.\/)/.test(html)
+  if (hasBareImport && !html.includes('<script type="importmap"')) {
+    const importMap = JSON.stringify({
+      imports: {
+        'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.js',
+        'react': 'https://esm.sh/react@18',
+        'react-dom': 'https://esm.sh/react-dom@18',
+        'react-dom/client': 'https://esm.sh/react-dom@18/client',
+        'react/jsx-runtime': 'https://esm.sh/react@18/jsx-runtime',
+      }
+    }, null, 2)
+    html = html.replace('<head>', `<head>\n  <script type="importmap">\n  ${importMap}\n  </script>`)
+  }
+
   return html
 }
 
@@ -552,7 +568,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
           {isLoading && !previewSrc ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-7 scanlines" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
+            <div className="flex-1 flex flex-col items-center justify-center gap-7" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
               <div
                 className="pixel-panel"
                 style={{

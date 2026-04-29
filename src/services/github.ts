@@ -160,6 +160,23 @@ function repairJsSyntax(content: string): string {
 }
 
 /**
+ * Vue SFC 문법 자동 수정
+ * AI가 자주 생성하는 Vue 전용 오류 수정
+ * - defineProps 내 `type:` 키워드 누락: `{ : Object }` → `{ type: Object }`
+ * - <script setup> 내 JS 오류도 repairJsSyntax로 추가 처리
+ */
+function repairVueSyntax(content: string): string {
+  let out = content
+  // defineProps/defineEmits 안에서 `  : SomeType,` → `  type: SomeType,`
+  out = out.replace(/^([ \t]+): ([A-Z][a-zA-Z]*)(,?)$/gm, '$1type: $2$3')
+  // <script> 블록 내 JS도 수정
+  out = out.replace(/(<script[^>]*>)([\s\S]*?)(<\/script>)/gi, (_m, open, js, close) => {
+    return open + repairJsSyntax(js) + close
+  })
+  return out
+}
+
+/**
  * 프로젝트 빌드 도구 자동 생성 (React/Vue용)
  * 
  * HTML의 경우: 파일 그대로 반환
@@ -316,6 +333,8 @@ function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = f
       next[path] = repairCssSyntax(content)
     } else if (/\.(jsx?|tsx?)$/.test(path)) {
       next[path] = repairJsSyntax(content)
+    } else if (path.endsWith('.vue')) {
+      next[path] = repairVueSyntax(content)
     }
   }
 
