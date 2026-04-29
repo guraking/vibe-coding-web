@@ -840,10 +840,11 @@ export async function deployToGitHubPages(
   onStatus('워크플로우 시작 대기 중...')
   await sleep(10_000) // GitHub Actions 큐 등록 대기
 
-  const TIMEOUT_MS = 8 * 60 * 1000
+  const TIMEOUT_MS = 9 * 60 * 1000 // 9분 (PreviewPanel 15분 타임아웃보다 먼저 실패하게)
   const startTime = Date.now()
   let runId: number | null = null
   let tick = 0
+  let runNotFoundCount = 0
 
   while (Date.now() - startTime < TIMEOUT_MS) {
     tick++
@@ -852,63 +853,97 @@ export async function deployToGitHubPages(
 
     // 새 run 탐색 (pushedAt 이후 생성된 run)
     if (runId === null) {
-      const runsRes = await fetch(
-        `${GH_API}/repos/${owner}/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=10`,
-        { headers },
-      ).catch(() => null)
+      try {
+        const runsRes = await fetch(
+          `${GH_API}/repos/${owner}/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=10`,
+          { headers },
+        )
 
-      if (runsRes?.ok) {
-        const data = await runsRes.json() as {
-          workflow_runs: Array<{ id: number; status: string; conclusion: string | null; created_at: string }>
+        if (runsRes.ok) {
+          runNotFoundCount = 0
+          const data = await runsRes.json() as {
+            workflow_runs: Array<{ id: number; status: string; conclusion: string | null; created_at: string }>
+          }
+          const found = data.workflow_runs.find(r => r.created_at >= pushedAt)
+          if (found) {
+            runId = found.id
+            onStatus(`빌드 시작됨${dots}  (${elapsed}초)`)
+          } else {
+            onStatus(`워크플로우 시작 대기 중${dots}  (${elapsed}초 경과)`)
+          }
+        } else if (runsRes.status === 401) {
+          throw new Error('GitHub 토큰 인증 실패. 토큰을 확인하세요.')
+        } else if (runsRes.status === 403) {
+          throw new Error('GitHub API 접근 거부. workflow 권한이 있는지 확인하세요.')
+        } else {
+          throw new Error(`GitHub API 오류 (${runsRes.status})`)
         }
-        const found = data.workflow_runs.find(r => r.created_at >= pushedAt)
-        if (found) runId = found.id
+      } catch (err) {
+        runNotFoundCount++
+        const msg = err instanceof Error ? err.message : 'API 오류'
+        if (runNotFoundCount > 5) {
+          throw new Error(`워크플로우 run을 찾을 수 없습니다 (${elapsed}초). ${msg}`)
+        }
+        onStatus(`재시도 중${dots}  (${elapsed}초, 오류: ${runNotFoundCount}/5)`)
       }
 
       if (runId === null) {
-        onStatus(`워크플로우 시작 대기 중${dots}  (${elapsed}초 경과)`)
-        await sleep(6_000)
+        await sleep(5_000)
         continue
       }
     }
 
     // 특정 run 폴링
-    const runRes = await fetch(`${GH_API}/repos/${owner}/${repo}/actions/runs/${runId}`, { headers }).catch(() => null)
-    if (runRes?.ok) {
-      const run = await runRes.json() as { status: string; conclusion: string | null }
-      onStatus(`빌드 & 배포 중${dots}  (${elapsed}초 경과)`)
+    try {
+      const runRes = await fetch(`${GH_API}/repos/${owner}/${repo}/actions/runs/${runId}`, { headers })
+      if (runRes.ok) {
+        const run = await runRes.json() as { status: string; conclusion: string | null; name?: string }
+        onStatus(`빌드 & 배포 중${dots}  (${elapsed}초 경과${run.name ? ` - ${run.name}` : ''})`)
 
-      if (run.status === 'completed') {
-        if (run.conclusion === 'failure') {
-          throw new Error(
-            'GitHub Actions 빌드 실패.\n' +
-            `https://github.com/${owner}/${repo}/actions/runs/${runId} 에서 로그를 확인하세요.`,
-          )
-        }
-        if (run.conclusion === 'cancelled') {
-          throw new Error('GitHub Actions 워크플로우가 취소되었습니다.')
-        }
-        if (run.conclusion === 'success') {
-          onStatus('배포 완료! URL 확인 중...')
-          await sleep(6_000) // Pages 등록 대기
-
-          // 최대 5회 재시도로 URL 확인
-          for (let i = 0; i < 6; i++) {
-            const url = await fetchDeploymentUrl(owner, repo, token)
-            if (url) return url
-            await sleep(5_000)
+        if (run.status === 'completed') {
+          if (run.conclusion === 'failure') {
+            throw new Error(
+              'GitHub Actions 빌드 실패.\n' +
+              `https://github.com/${owner}/${repo}/actions/runs/${runId} 에서 로그를 확인하세요.`,
+            )
           }
-          // Pages API가 늦게 갱신되는 경우 fallback
-          return `https://${owner}.github.io/${repo}/`
+          if (run.conclusion === 'cancelled') {
+            throw new Error('GitHub Actions 워크플로우가 취소되었습니다.')
+          }
+          if (run.conclusion === 'success') {
+            onStatus('배포 완료! URL 확인 중...')
+            await sleep(6_000) // Pages 등록 대기
+
+            // 최대 5회 재시도로 URL 확인
+            for (let i = 0; i < 6; i++) {
+              const url = await fetchDeploymentUrl(owner, repo, token)
+              if (url) return url
+              await sleep(5_000)
+            }
+            // Pages API가 늦게 갱신되는 경우 fallback
+            return `https://${owner}.github.io/${repo}/`
+          }
         }
+      } else if (runRes.status === 404) {
+        // run이 삭제되었거나 접근 불가
+        throw new Error(`배포 run을 찾을 수 없습니다 (ID: ${runId}). GitHub Actions 로그를 확인하세요.`)
+      } else {
+        throw new Error(`배포 상태 조회 실패 (${runRes.status})`)
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '알 수 없는 오류'
+      if (msg.includes('배포 실패') || msg.includes('취소') || msg.includes('찾을 수 없습니다')) {
+        throw err
+      }
+      // 일시적 API 오류는 계속 재시도
+      onStatus(`상태 확인 중${dots}  (${elapsed}초)`)
     }
 
     await sleep(8_000)
   }
 
   throw new Error(
-    '배포 타임아웃 (8분).\n' +
+    '배포 타임아웃 (9분).\n' +
     `https://github.com/${owner}/${repo}/actions 에서 진행 상황을 확인하세요.`,
   )
 }

@@ -178,10 +178,12 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployStatus, setDeployStatus] = useState('')
   const [deployError, setDeployError] = useState('')
-  const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token'>('idle')
+  const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token' | 'deploy-error'>('idle')
   const [deployToken, setDeployToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
   const [deployUrlCopied, setDeployUrlCopied] = useState(false)
   const [deployHistory, setDeployHistory] = useState<DeploymentHistoryItem[]>(() => loadDeployHistory())
+  const deployAbortRef = useRef(false)
+  const deployTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fileListWidth, setFileListWidth] = useState(220)
   const codeTabRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
@@ -219,12 +221,20 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         return
       }
       // Keep linked repo so subsequent pushes reuse the same destination.
-      setDeployUrl(null)
+      // 배포 중이 아닐 때만 deployUrl 리셋 (배포 진행 중 파일 변경 시에도 미리보기 유지)
+      if (deployStep !== 'deploying') {
+        setDeployUrl(null)
+      }
       setSelectedFile(fileNames[0] || 'index.html')
     }
-  }, [files])
+  }, [files, deployStep])
 
-  useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current) }, [])
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+      if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -325,18 +335,45 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     setDeployStep('deploying')
     setDeployError('')
     setDeployStatus('')
+    deployAbortRef.current = false
+    
+    // 15분 안전 타임아웃 (배포가 무한 대기하는 것 방지)
+    if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+    deployTimeoutRef.current = setTimeout(() => {
+      if (deployStep === 'deploying') {
+        deployAbortRef.current = true
+        setDeployError('배포 타임아웃 (15분). 배포 상태를 확인하거나 다시 시도하세요.')
+        setDeployStatus('')
+        setDeployStep('idle')
+      }
+    }, 15 * 60 * 1000)
+    
     try {
       const url = await deployToGitHubPages(token, owner, repo, branch, setDeployStatus)
-      setDeployUrl(url)
-      persistDeployment(owner, repo, branch, url)
-      setDeployStatus('')
-      setDeployStep('idle')
-      setIframeKey(k => k + 1)
+      if (!deployAbortRef.current) {
+        if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+        setDeployUrl(url)
+        persistDeployment(owner, repo, branch, url)
+        setDeployStatus('')
+        setDeployStep('idle')
+        setIframeKey(k => k + 1)
+      }
     } catch (err) {
-      setDeployError(err instanceof Error ? err.message : '배포 실패')
-      setDeployStatus('')
-      setDeployStep('idle')
+      if (!deployAbortRef.current) {
+        if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+        setDeployError(err instanceof Error ? err.message : '배포 실패')
+        setDeployStatus('')
+        setDeployStep('deploy-error')
+      }
     }
+  }
+  
+  const cancelDeploy = () => {
+    deployAbortRef.current = true
+    if (deployTimeoutRef.current) clearTimeout(deployTimeoutRef.current)
+    setDeployStep('idle')
+    setDeployStatus('')
+    setDeployError('배포가 취소되었습니다.')
   }
 
   const handleImportSuccess = async (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => {
@@ -554,6 +591,56 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                   <ExternalLink style={{ width: 10, height: 10 }} /> Actions 로그 보기
                 </a>
               )}
+              <button
+                onClick={cancelDeploy}
+                className="flex items-center gap-1.5 transition-all"
+                style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '6px 12px', background: 'var(--bg-panel)', border: '1px solid var(--border)', cursor: 'pointer' }}
+              >
+                배포 취소
+              </button>
+            </div>
+          ) : deployStep === 'deploy-error' ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <div style={{
+                width: 56, height: 56,
+                background: 'var(--err-bg)',
+                border: '1px solid var(--err-bd)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ExternalLink style={{ width: 24, height: 24, color: 'var(--err)' }} />
+              </div>
+              <div className="text-center">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 12, marginBottom: 8 }}>
+                  배포 실패
+                </p>
+                <p className="px-4 py-2 whitespace-pre-wrap"
+                  style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.6, maxWidth: 320, marginBottom: 12 }}>
+                  {deployError}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {githubRepo && (
+                  <a
+                    href={`https://github.com/${githubRepo.owner}/${githubRepo.repo}/actions`}
+                    target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1"
+                    style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '6px 12px', background: 'var(--bg-panel)', border: '1px solid var(--border)', textDecoration: 'none' }}
+                  >
+                    <ExternalLink style={{ width: 10, height: 10 }} /> 로그 보기
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    if (githubRepo) {
+                      startDeploy(githubRepo.owner, githubRepo.repo, githubRepo.branch, deployToken)
+                    }
+                  }}
+                  className="flex items-center gap-1.5 transition-all"
+                  style={{ color: '#fff', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '6px 12px', background: 'var(--accent)', border: 'none', cursor: 'pointer' }}
+                >
+                  다시 배포
+                </button>
+              </div>
             </div>
           ) : deployStep === 'needs-token' ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
