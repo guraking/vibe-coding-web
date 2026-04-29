@@ -446,6 +446,34 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
     }
   }
 
+  const handleCommitPush = () => {
+    setShowExport(true)
+  }
+
+  const handleDeploy = async () => {
+    if (projectType === 'html') {
+      setTab('preview')
+      setIframeKey(k => k + 1)
+      return
+    }
+
+    setTab('preview')
+
+    if (!githubRepo) {
+      setDeployError('먼저 commit/push로 GitHub 저장소에 코드를 올려주세요.')
+      setDeployStep('deploy-error')
+      return
+    }
+
+    const token = (deployToken || localStorage.getItem('vibe_gh_token') || '').trim()
+    if (!token) {
+      setDeployStep('needs-token')
+      return
+    }
+
+    await startDeploy(githubRepo.owner, githubRepo.repo, githubRepo.branch, token)
+  }
+
   const TabBtn = ({ id, icon: Icon, label }: { id: Tab; icon: React.ElementType; label: string }) => (
     <button onClick={() => setTab(id)}
       className="flex items-center gap-1.5 transition-all"
@@ -500,16 +528,39 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
 
         {/* GitHub export button */}
         {hasFiles && (
-          <button onClick={() => setShowExport(true)}
+          <button onClick={handleCommitPush}
             className="flex items-center gap-1.5 transition-all"
             style={githubRepo
               ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', border: '1px solid var(--ok-bd)', cursor: 'pointer' }
               : { color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
             onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' } }}
-            title="Export to GitHub">
+            title="Commit and push to GitHub">
             <GitFork style={{ width: 12, height: 12 }} />
-            <span>{githubRepo ? `${githubRepo.owner}/${githubRepo.repo}` : 'github'}</span>
+            <span>{githubRepo ? 'commit/push' : 'commit/push'}</span>
+          </button>
+        )}
+
+        {hasFiles && (projectType === 'react' || projectType === 'vue') && (
+          <button
+            onClick={handleDeploy}
+            disabled={deployStep === 'deploying'}
+            className="flex items-center gap-1.5 transition-all disabled:opacity-50"
+            style={{
+              color: 'var(--txt-2)',
+              fontFamily: 'var(--mono-font)',
+              fontSize: 10,
+              padding: '2px 10px',
+              background: 'none',
+              border: 'none',
+              cursor: deployStep === 'deploying' ? 'default' : 'pointer',
+            }}
+            onMouseEnter={e => { if (deployStep !== 'deploying') { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
+            onMouseLeave={e => { if (deployStep !== 'deploying') { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
+            title="Deploy to GitHub Pages"
+          >
+            <ExternalLink style={{ width: 12, height: 12 }} />
+            <span>{deployStep === 'deploying' ? 'deploying...' : 'deploy'}</span>
           </button>
         )}
 
@@ -896,9 +947,54 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                   <span style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
                     editing: {selectedFile}
                   </span>
-                  <span style={{ color: saveLabel === 'saved' ? 'var(--ok)' : 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
-                    {saveLabel}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: saveLabel === 'saved' ? 'var(--ok)' : 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                      {saveLabel}
+                    </span>
+                    <button
+                      onClick={handleCommitPush}
+                      className="flex items-center gap-1.5 transition-all"
+                      style={{
+                        color: '#ffffff',
+                        fontFamily: 'var(--mono-font)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: '2px 10px',
+                        background: 'var(--ok)',
+                        border: '1px solid #0f766e',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
+                      title="Commit and push to GitHub"
+                    >
+                      <GitFork style={{ width: 11, height: 11 }} />
+                      <span>commit/push</span>
+                    </button>
+                    {(projectType === 'react' || projectType === 'vue') && (
+                      <button
+                        onClick={handleDeploy}
+                        disabled={deployStep === 'deploying'}
+                        className="flex items-center gap-1.5 transition-all disabled:opacity-50"
+                        style={{
+                          color: '#ffffff',
+                          fontFamily: 'var(--mono-font)',
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: '2px 10px',
+                          background: 'var(--accent)',
+                          border: '1px solid var(--accent-h)',
+                          cursor: deployStep === 'deploying' ? 'default' : 'pointer',
+                        }}
+                        onMouseEnter={e => { if (deployStep !== 'deploying') e.currentTarget.style.filter = 'brightness(1.08)' }}
+                        onMouseLeave={e => { if (deployStep !== 'deploying') e.currentTarget.style.filter = 'none' }}
+                        title="Deploy to GitHub Pages"
+                      >
+                        <ExternalLink style={{ width: 11, height: 11 }} />
+                        <span>{deployStep === 'deploying' ? 'deploying...' : 'deploy'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex h-full">
                   <div className="overflow-hidden select-none"
