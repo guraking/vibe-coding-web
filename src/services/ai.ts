@@ -25,14 +25,32 @@ export interface AIModel {
 /**
  * Groq 니늤님찌 (33m24.4s 또는 45.2s) 형식을 초 단위로 변환
  */
+/**
+ * Groq Rate Limit 에러 메시지에서 재시도 대기 시간 파싱
+ * 형식 예: \"try again in 2m45.3s\" → 165초, \"try again in 45.2s\" → 46초
+ * @param msg - Groq API 에러 메시지
+ * @returns 재시도 대기 시간 (초 단위)
+ */
 function parseRetrySeconds(msg: string): number {
+  // 분과 초 형식 (예: 2m45.3s)
   const m = msg.match(/try again in (\d+)m([\d.]+)s/)
   if (m) return Math.ceil(parseInt(m[1], 10) * 60 + parseFloat(m[2]))
+  // 초 형식만 있는 경우 (예: 45.2s)
   const s = msg.match(/try again in ([\d.]+)s/)
   if (s) return Math.ceil(parseFloat(s[1]))
+  // 형식을 찾을 수 없으면 기본값 60초
   return 60
 }
 
+/**
+ * Groq API Rate Limit 에러 클래스
+ * API 일일 토큰 한도 초과 시 발생
+ * 재시도 가능 시간과 토큰 사용량 정보 포함
+ * 
+ * @property retryAfterSeconds - 재시도 대기 시간 (초)
+ * @property limitTokens - 일일 토큰 한도
+ * @property usedTokens - 이미 사용한 토큰 수
+ */
 export class RateLimitError extends Error {
   retryAfterSeconds: number
   limitTokens: number
@@ -40,7 +58,9 @@ export class RateLimitError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'RateLimitError'
+    // 에러 메시지에서 대기 시간 파싱
     this.retryAfterSeconds = parseRetrySeconds(message)
+    // 에러 메시지에서 토큰 한도와 사용량 추출
     const limitMatch = message.match(/Limit (\d+)/)
     const usedMatch = message.match(/Used (\d+)/)
     this.limitTokens = limitMatch ? parseInt(limitMatch[1], 10) : 0
@@ -64,10 +84,21 @@ export const MODELS: AIModel[] = [
   { id: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash', provider: 'gemini' },
 ]
 
+/**
+ * 특정 AI 제공자의 모든 사용 가능한 모델 목록 조회
+ * @param provider - AI 제공자 (groq/openai/gemini)
+ * @returns 해당 제공자의 모델 배열
+ */
 export function getModelsByProvider(provider: AIProvider): AIModel[] {
   return MODELS.filter((m) => m.provider === provider)
 }
 
+/**
+ * 특정 AI 제공자의 기본 모델 ID 반환
+ * 모델 목록의 첫 번째 모델이 기본값
+ * @param provider - AI 제공자 (groq/openai/gemini)
+ * @returns 기본 모델 ID
+ */
 export function getDefaultModel(provider: AIProvider): string {
   return getModelsByProvider(provider)[0]?.id ?? MODELS[0].id
 }
@@ -213,6 +244,16 @@ Vue mode rules:
 - Dark theme by default
 - When refining: keep design language consistent, improve only what was asked`
 
+/**
+ * AI 스트리밍 코드 생성 함수
+ * 
+ * 기능:
+ * - Groq, OpenAI, Gemini 여러 AI 제공자 지원
+ * - 사용자 메시지 히스토리를 프롬프트로 전달
+ * - 현재 프로젝트 파일을 컨텍스트에 포함 (리파인용)
+ * - 스트리밍 방식으로 응답을 실시간 처리
+ * - 토큰 사용량 추적 및 콜백 제공
+ * \n * @param provider - AI 제공자 (groq/openai/gemini)\n * @param apiKey - API 인증 키\n * @param model - 사용할 모델 ID\n * @param messages - 채팅 메시지 히스토리\n * @param currentFiles - 현재 프로젝트 파일들 (선택적)\n * @param onUsage - 토큰 사용량 업데이트 콜백\n * @returns 스트리밍 응답 청크들의 비동기 제너레이터\n */
 export async function* streamCode(
   provider: AIProvider,
   apiKey: string,
@@ -371,6 +412,9 @@ export async function* streamCode(
  * @param raw - 파싱할 원본 AI 응답
  * @returns 파일, 설명, 프로젝트 타입
  */
+/**
+ * AI 응답을 파싱하여 파일과 프로젝트 타입 추출
+ * \n * AI는 다음 형식으로 응답:\n * <VIBE_FILE name=\"파일명\">\n * 파일 내용\n * </VIBE_FILE>\n * <VIBE_TYPE>html|react|vue</VIBE_TYPE>\n * <VIBE_EXPLANATION>프로젝트 설명</VIBE_EXPLANATION>\n * \n * 스트리밍 중 부분 파싱도 지원 (완성되지 않은 형식도 처리)\n * Vue (.vue), React (.jsx/.tsx) 파일 확장자로 프로젝트 타입 자동 감지\n * \n * @param raw - 파싱할 원본 AI 응답 텍스트\n * @returns {{ files, explanation, projectType }} 파일 객체, 설명, 감지된 프로젝트 타입\n */
 export function parseVibe(raw: string): { files: Record<string, string>; explanation: string; projectType: 'html' | 'react' | 'vue' } {
   const fileMatches = [...raw.matchAll(/<VIBE_FILE name="([^"]+)">([/\s\S]*?)<\/VIBE_FILE>/g)]
   const explMatch = raw.match(/<VIBE_EXPLANATION>([\s\S]*?)<\/VIBE_EXPLANATION>/)

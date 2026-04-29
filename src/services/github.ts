@@ -1,5 +1,13 @@
 const GH_API = 'https://api.github.com'
 
+/**
+ * GitHub API 요청 헤더 생성
+ * OAuth Bearer 토큰과 API 버전 정보 포함
+ * 모든 GitHub API 호출에 필수
+ * 
+ * @param token - GitHub Personal Access Token (repo 및 workflow 권한 필요)
+ * @returns API 요청용 HTTP 헤더 객체
+ */
 function ghHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
@@ -9,6 +17,15 @@ function ghHeaders(token: string): Record<string, string> {
   }
 }
 
+/**
+ * GitHub 사용자 정보 조회
+ * 토큰의 유효성 검증 및 사용자 로그인 정보 확인
+ * 저장소 생성 시 owner 필드를 가져오기 위해 필요
+ * 
+ * @param token - GitHub Personal Access Token
+ * @returns {{ login, avatar_url }} 사용자 로그인 ID와 프로필 사진 URL
+ * @throws GitHub 토큰이 유효하지 않으면 에러 발생
+ */
 export async function getGitHubUser(token: string): Promise<{ login: string; avatar_url: string }> {
   const res = await fetch(`${GH_API}/user`, { headers: ghHeaders(token) })
   if (!res.ok) throw new Error(`GitHub 인증 실패 — 토큰을 확인하세요 (${res.status})`)
@@ -16,15 +33,26 @@ export async function getGitHubUser(token: string): Promise<{ login: string; ava
 }
 
 /** UTF-8 문자열을 Base64로 인코딩 (GitHub Contents API용) */
+/**
+ * UTF-8 문자열을 Base64로 인코딩
+ * GitHub Contents API는 파일 내용을 Base64로 전송해야 함
+ * 한글 등 다국어 문자를 올바르게 처리
+ * 
+ * @param str - 인코딩할 UTF-8 문자열\n * @returns Base64로 인코딩된 문자열\n */
 function toBase64(str: string): string {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))))
 }
 
+/**
+ * 파일 경로에서 디렉터리 부분만 추출
+ * 예: \"src/components/Button.jsx\" → \"src/components\"\n * @param path - 파일 경로\n * @returns 디렉터리 경로 (마지막 \"/\" 이전까지)\n */
 function dirname(path: string): string {
   const idx = path.lastIndexOf('/')
   return idx >= 0 ? path.slice(0, idx) : ''
 }
 
+/**
+ * 상대 경로를 프로젝트 루트 기준 절대 경로로 변환\n * import 문의 상대 경로(./, ../)를 프로젝트 루트 기준 경로로 해석\n * 예: from=\"src/App.jsx\", rel=\"../utils/helpers\" → \"src/utils/helpers\"\n * \n * @param fromFile - 기준이 되는 파일 경로\n * @param rel - 상대 경로 (\"./\", \"../\" 포함)\n * @returns 프로젝트 루트 기준의 절대 경로\n */
 function resolveRelativePath(fromFile: string, rel: string): string {
   const base = dirname(fromFile)
   const parts = `${base}/${rel}`.split('/').filter(Boolean)
@@ -37,6 +65,9 @@ function resolveRelativePath(fromFile: string, rel: string): string {
   return out.join('/')
 }
 
+/**
+ * Import 경로에서 가능한 파일 후보들 생성
+n * 확장자가 없는 import 경로에 대해 여러 가능한 확장자 조합 시도\n * 예: \"./Button\" → [\"./Button.js\", \"./Button/index.js\", \"./Button.jsx\", ...]\n * \n * @param fromFile - import를 포함한 소스 파일 경로\n * @param rel - Import 상대 경로 (확장자 포함/미포함)\n * @returns 가능한 파일 경로들의 배열 (우선순위 포함)\n */
 function resolveImportCandidates(fromFile: string, rel: string): string[] {
   const base = resolveRelativePath(fromFile, rel)
   const extMatch = base.match(/\.[a-z0-9]+$/i)
@@ -57,6 +88,8 @@ function resolveImportCandidates(fromFile: string, rel: string): string[] {
   return Array.from(new Set(out))
 }
 
+/**
+ * 누락된 import 모듈을 위한 폴백 파일 생성\n * 파일 확장자에 따라 적절한 빈 모듈 생성 (에러 방지용)\n * - .css: 빈 스타일 주석\n * - .vue: 빈 template 엘리먼트\n * - .tsx/.jsx: 빈 React 컴포넌트\n * - .ts/.js: 빈 CommonJS 모듈\n * \n * @param path - 생성할 폴백 파일 경로\n * @returns 파일 확장자에 맞는 빈 모듈 코드\n */
 function makeFallbackModule(path: string): string {
   if (path.endsWith('.css')) return '/* generated missing import fallback */\n'
   if (path.endsWith('.vue')) {
@@ -68,6 +101,8 @@ function makeFallbackModule(path: string): string {
   return `export const __vibePlaceholder = true\n\nexport default function VibePlaceholder() {\n  return null\n}\n`
 }
 
+/**
+ * 누락된 import된 모듈 자동 생성\n * 생성된 코드에서 import하지만 파일이 없는 경우 폴백 모듈 생성\n * JavaScript/TypeScript 파일들의 상대 import를 순회하며 확인\n * \n * @param files - AI가 생성한 파일 객체\n * @returns 누락된 모듈이 추가된 파일 객체\n */
 function ensureMissingImportedModules(files: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = { ...files }
   const sourceFiles = Object.keys(next).filter((p) => /\.(jsx?|tsx?|mjs|cjs|vue)$/i.test(p))
@@ -97,19 +132,17 @@ function ensureMissingImportedModules(files: Record<string, string>): Record<str
   return next
 }
 
+/**
+ * CSS 문법 자동 수정\n * AI가 생성한 CSS에서 흔한 문법 오류를 자동으로 수정\n * 주요 수정: CSS 커스텀 프로퍼티 앞의 누락된 세미콜론\n * \n * @param content - 원본 CSS 코드\n * @returns 수정된 CSS 코드\n */
 function repairCssSyntax(content: string): string {
   let out = content
-  // Common LLM mistake: missing semicolon before the next custom property.
+  // 공통 LLM 오류: CSS 커스텀 프로퍼티 앞의 누락된 세미콜론
   out = out.replace(/([a-zA-Z-]+\s*:\s*[^;{}\n]+)\s+(--[a-zA-Z0-9_-]+\s*:)/g, '$1;\n  $2')
   return out
 }
 
 /**
- * Fix the most common LLM mistake in JS/JSX/TS/TSX:
- * Missing opening brace { for an array-of-objects element.
- * Example (bad):  label: 'Home', href: '#' },
- * Fixed:        { label: 'Home', href: '#' },
- */
+ * JavaScript/TypeScript 문법 자동 수정\n * AI가 생성한 코드에서 가장 흔한 LLM 오류 수정\n * 주요 수정: 배열 객체 요소의 누락된 여는 중괄호\n * 예: label: 'Home', href: '#' }, → { label: 'Home', href: '#' },\n * \n * @param content - 원본 JS/TS/JSX/TSX 코드\n * @returns 수정된 코드\n */
 function repairJsSyntax(content: string): string {
   const lines = content.split('\n')
   const fixed = lines.map((line) => {
@@ -255,6 +288,8 @@ function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = f
   return next
 }
 
+/**
+ * GitHub에 새 저장소 생성 및 파일 업로드\n * \n * 처리 흐름:\n * 1. 토큰 유효성 검증 (getGitHubUser)\n * 2. 파일 정규화 (종속성, 빌드 설정 추가)\n * 3. GitHub 저장소 생성 (auto_init=false로 timing 이슈 방지)\n * 4. 파일들을 순차적으로 업로드 (Contents API)\n * 5. 첫 파일 업로드 시 초기 커밋 자동 생성\n * \n * @param token - GitHub Personal Access Token\n * @param repoName - 생성할 저장소 이름\n * @param files - 업로드할 파일 객체\n * @returns {{ owner, repo, branch, url }} 생성된 저장소 정보\n * @throws 저장소 생성 또는 파일 업로드 실패 시 에러\n */
 export async function createRepoWithFiles(
   token: string,
   repoName: string,
@@ -331,6 +366,8 @@ export async function createRepoWithFiles(
   return { owner, repo: repoName, branch, url: `https://github.com/${owner}/${repoName}` }
 }
 
+/**
+ * 기존 GitHub 저장소의 파일 업데이트\n * \n * 처리 흐름:\n * 1. 저장소 접근 가능성 확인\n * 2. 파일 정규화 (종속성, 빌드 설정 추가)\n * 3. 각 파일마다 기존 여부 확인 (SHA 조회)\n * 4. 신규 또는 기존 파일 업로드\n * 5. 변경 내역을 커밋으로 기록\n * \n * @param token - GitHub Personal Access Token\n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param branch - 대상 브랜치\n * @param files - 업로드할 파일 객체\n * @returns {{ owner, repo, branch, url }} 저장소 정보\n * @throws 저장소 접근 또는 파일 업로드 실패 시 에러\n */
 export async function updateRepoWithFiles(
   token: string,
   owner: string,
