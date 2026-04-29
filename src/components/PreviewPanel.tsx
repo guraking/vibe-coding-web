@@ -178,12 +178,15 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployStatus, setDeployStatus] = useState('')
   const [deployError, setDeployError] = useState('')
-  const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token' | 'deploy-error'>('idle')
+  const [deployStep, setDeployStep] = useState<'idle' | 'checking' | 'deploying' | 'needs-token' | 'deploy-error' | 'deploy-done'>('idle')
   const [deployToken, setDeployToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
   const [deployUrlCopied, setDeployUrlCopied] = useState(false)
   const [deployHistory, setDeployHistory] = useState<DeploymentHistoryItem[]>(() => loadDeployHistory())
   const deployAbortRef = useRef(false)
   const deployTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // deployStep ref: useEffect가 deployStep 변경에 반응하지 않도록 ref로 읽음
+  const deployStepRef = useRef(deployStep)
+  useEffect(() => { deployStepRef.current = deployStep }, [deployStep])
   const [fileListWidth, setFileListWidth] = useState(220)
   const codeTabRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
@@ -220,14 +223,15 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         setSelectedFile(fileNames[0] || 'index.html')
         return
       }
-      // Keep linked repo so subsequent pushes reuse the same destination.
-      // 배포 중이 아닐 때만 deployUrl 리셋 (배포 진행 중 파일 변경 시에도 미리보기 유지)
-      if (deployStep !== 'deploying') {
+      // 새 파일 생성/업데이트 시 deployUrl 리셋 (배포중·완료 상태는 유지)
+      // deployStepRef 사용: 이 effect가 deployStep 변경에 재실행되지 않도록
+      const step = deployStepRef.current
+      if (step !== 'deploying' && step !== 'deploy-done') {
         setDeployUrl(null)
       }
       setSelectedFile(fileNames[0] || 'index.html')
     }
-  }, [files, deployStep])
+  }, [files])
 
   useEffect(() => {
     return () => {
@@ -355,8 +359,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         setDeployUrl(url)
         persistDeployment(owner, repo, branch, url)
         setDeployStatus('')
-        setDeployStep('idle')
-        setIframeKey(k => k + 1)
+        setDeployStep('deploy-done')  // 배포 완료 → 미리보기 버튼 표시
       }
     } catch (err) {
       if (!deployAbortRef.current) {
@@ -374,6 +377,13 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     setDeployStep('idle')
     setDeployStatus('')
     setDeployError('배포가 취소되었습니다.')
+  }
+
+  const openPreviewFromDeploy = () => {
+    // 배포 완료 화면 → iframe 미리보기로 전환
+    setDeployStep('idle')
+    setTab('preview')
+    setIframeKey(k => k + 1)
   }
 
   const handleImportSuccess = async (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => {
@@ -692,6 +702,51 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
                 <p className="px-3 py-2 whitespace-pre-wrap text-center"
                   style={{ color: 'var(--err)', background: 'var(--err-bg)', border: '1px solid var(--err-bd)', fontFamily: 'var(--mono-font)', fontSize: 10, maxWidth: 300, lineHeight: 1.6 }}>
                   {deployError}
+                </p>
+              )}
+            </div>
+          ) : deployStep === 'deploy-done' ? (
+            /* 배포 완료 화면 — 미리보기 버튼 제공 */
+            <div className="flex-1 flex flex-col items-center justify-center gap-5">
+              <div style={{
+                width: 56, height: 56,
+                background: 'var(--ok-bg)',
+                border: '1px solid var(--ok-bd)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Check style={{ width: 24, height: 24, color: 'var(--ok)' }} />
+              </div>
+              <div className="text-center">
+                <p style={{ color: 'var(--txt)', fontFamily: 'var(--mono-font)', fontSize: 13, marginBottom: 8 }}>
+                  배포 완료!
+                </p>
+                {deployUrl && (
+                  <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10, lineHeight: 1.6, maxWidth: 320, wordBreak: 'break-all' }}>
+                    {deployUrl}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={openPreviewFromDeploy}
+                  className="flex items-center gap-2 transition-colors"
+                  style={{ background: 'var(--accent)', color: '#fff', fontFamily: 'var(--mono-font)', fontSize: 11, padding: '8px 20px', border: 'none', cursor: 'pointer' }}
+                >
+                  <Eye style={{ width: 13, height: 13 }} /> 미리보기 열기
+                </button>
+                {deployUrl && (
+                  <button
+                    onClick={() => window.open(deployUrl, '_blank')}
+                    className="flex items-center gap-1.5 transition-all"
+                    style={{ color: 'var(--txt-2)', fontFamily: 'var(--mono-font)', fontSize: 10, padding: '8px 14px', background: 'var(--bg-panel)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                  >
+                    <ExternalLink style={{ width: 11, height: 11 }} /> 새 탭
+                  </button>
+                )}
+              </div>
+              {githubRepo && (
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 10 }}>
+                  {githubRepo.owner}/{githubRepo.repo} · {githubRepo.branch}
                 </p>
               )}
             </div>

@@ -838,7 +838,7 @@ export async function deployToGitHubPages(
 
   // ── Step 3: workflow run 탐색 (push 후 생성된 run) ────────────────────────
   onStatus('워크플로우 시작 대기 중...')
-  await sleep(10_000) // GitHub Actions 큐 등록 대기
+  await sleep(5_000) // GitHub Actions 큐 등록 대기 (10초→5초로 단축)
 
   const TIMEOUT_MS = 9 * 60 * 1000 // 9분 (PreviewPanel 15분 타임아웃보다 먼저 실패하게)
   const startTime = Date.now()
@@ -888,7 +888,7 @@ export async function deployToGitHubPages(
       }
 
       if (runId === null) {
-        await sleep(5_000)
+        await sleep(4_000) // 4초 간격으로 폴링 (기존 5초)
         continue
       }
     }
@@ -912,13 +912,14 @@ export async function deployToGitHubPages(
           }
           if (run.conclusion === 'success') {
             onStatus('배포 완료! URL 확인 중...')
-            await sleep(6_000) // Pages 등록 대기
+            await sleep(3_000) // Pages 등록 대기 (단축)
 
-            // 최대 5회 재시도로 URL 확인
-            for (let i = 0; i < 6; i++) {
+            // 최대 8회 재시도로 URL 확인 (3초 간격)
+            for (let i = 0; i < 8; i++) {
               const url = await fetchDeploymentUrl(owner, repo, token)
               if (url) return url
-              await sleep(5_000)
+              onStatus(`배포 URL 확인 중... (${i + 1}/8)`)
+              await sleep(3_000)
             }
             // Pages API가 늦게 갱신되는 경우 fallback
             return `https://${owner}.github.io/${repo}/`
@@ -939,7 +940,7 @@ export async function deployToGitHubPages(
       onStatus(`상태 확인 중${dots}  (${elapsed}초)`)
     }
 
-    await sleep(8_000)
+    await sleep(6_000) // 폴링 간격 (기존 8초 → 6초)
   }
 
   throw new Error(
