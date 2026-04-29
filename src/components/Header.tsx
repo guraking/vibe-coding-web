@@ -26,15 +26,28 @@ const DOCS_BY_PROVIDER: Record<AIProvider, string> = {
   gemini: 'https://ai.google.dev/gemini-api/docs',
 }
 
+/**
+ * Header 컴포넌트: 상단 네비게이션 바
+ * - 로고 및 앱 제목 표시
+ * - AI 제공자(Groq/OpenAI/Gemini) 선택
+ * - 모델 선택 드롭다운
+ * - API 키 설정 모달
+ * - 모바일/데스크톱 반응형 레이아웃
+ */
 export default function Header({ provider, apiKeys, model, onProviderChange, onApiKeyChange, onModelChange, isEnvKeyByProvider, isMobile }: Props) {
-  const [showModal, setShowModal] = useState(false)
-  const [draft, setDraft] = useState<Record<AIProvider, string>>({ groq: '', openai: '', gemini: '' })
+  const [showModal, setShowModal] = useState(false)  // API 키 설정 모달 표시 여부
+  const [draft, setDraft] = useState<Record<AIProvider, string>>({ groq: '', openai: '', gemini: '' })  // 임시 입력 값 (저장 전)
 
+  // 모달 열기: 현재 API 키를 draft에 복사하고 모달 표시
   const open = () => { setDraft(apiKeys); setShowModal(true) }
+  
+  // API 키 저장: draft의 값들을 부모 컴포넌트로 전송하고 모달 닫기
   const save = () => {
     (Object.keys(draft) as AIProvider[]).forEach((p) => onApiKeyChange(p, draft[p].trim()))
     setShowModal(false)
   }
+  
+  // 페이지 새로고침: 세션 초기화 (새로운 채팅 시작)
   const reloadPage = () => window.location.reload()
 
   const selectedModel = MODELS.find(m => m.id === model)
@@ -268,6 +281,12 @@ export default function Header({ provider, apiKeys, model, onProviderChange, onA
   )
 }
 
+/**
+ * NavItem 컴포넌트: 헤더 네비게이션 항목
+ * - 클릭 가능한 버튼 또는 외부 링크 지원
+ * - 활성 상태 시각화 (하단 테두리)
+ * - 호버 효과 포함
+ */
 function NavItem({ label, active, href, onClick }: { label: string; active?: boolean; href?: string; onClick?: () => void }) {
   const style: React.CSSProperties = {
     height: 36,
