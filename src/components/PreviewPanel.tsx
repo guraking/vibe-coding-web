@@ -56,6 +56,7 @@ function upsertDeployHistory(items: DeploymentHistoryItem[], next: DeploymentHis
 }
 
 /** Inline CSS/JS into a single self-contained HTML for HTML projects */
+// Bundle CSS and JS files into HTML for static HTML projects
 function bundleFiles(files: Record<string, string>): string {
   let html = files['index.html'] || ''
 
@@ -199,8 +200,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
     return url
   }, [files, projectType])
 
-  // StackBlitz 대신 GitHub Deployments에서 가져온 실제 배포 URL 사용
-  // HTML은 로컬 blob, React/Vue는 deployUrl
   const previewSrc = blobUrl || deployUrl || ''
 
   useEffect(() => {
@@ -497,7 +496,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
           {isLoading && !previewSrc ? (
-            /* AI 생성 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-7 scanlines" style={{ background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
               <div
                 className="pixel-panel"
@@ -526,12 +524,10 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
             <iframe key={iframeKey} ref={iframeRef} src={previewSrc}
               className="w-full h-full border-0" allow="fullscreen" title="Preview" />
           ) : deployStep === 'checking' ? (
-            /* 임포트 직후 기존 배포 URL 조회 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <PixelLoadingBar size="md" label="DEPLOY LOOKUP" subLabel="기존 배포 URL 확인 중..." />
             </div>
           ) : deployStep === 'deploying' ? (
-            /* GitHub Pages 배포 진행 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <PixelLoadingBar size="lg" label="DEPLOYING" subLabel={deployStatus || '준비 중...'} />
               <div className="text-center flex flex-col gap-1.5">
@@ -551,7 +547,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport }
               )}
             </div>
           ) : deployStep === 'needs-token' ? (
-            /* 임포트한 React/Vue — 토큰 없어서 자동 배포 대기 중 */
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <div style={{
                 width: 56, height: 56,

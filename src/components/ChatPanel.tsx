@@ -1,28 +1,17 @@
-﻿/**
- * 채팅 패널 컴포넌트
- * 사용자 메시지 입력, 메시지 표시, 토큰 사용론 추적
- */
+﻿import { useState, useRef, useEffect } from 'react'
+import { Send, RotateCcw, AlertCircle, Terminal, Clock } from 'lucide-react'
+import type { Message, TokenUsage } from '../services/ai'
 
-import { useState, useRef, useEffect } from 'react'
-import { Send, RotateCcw, AlertCircle, Terminal, Clock } from 'lucide-react'  // UI 아이콘
-import type { Message, TokenUsage } from '../services/ai'  // AI 메시지 및 토큰 냅 정의
-
-/**
- * ChatPanel 컴포넌트 Props 인터페이스
- */
 interface Props {
-  messages: Message[]  // 채팅 메시지 리스트
-  onSend: (prompt: string) => void  // 메시지 전송 콜백
-  isLoading: boolean  // AI 응답 대기 중 여부
-  hasApiKey: boolean  // API 키 여부
-  width?: number  // 패널 넘비 (px)
-  tokenUsage?: TokenUsage | null  // 토큰 사용률 정보
-  retryAt?: number | null  // 레이트 리미트 결단 싱 시간 (ms)
+  messages: Message[]
+  onSend: (prompt: string) => void
+  isLoading: boolean
+  hasApiKey: boolean
+  width?: number
+  tokenUsage?: TokenUsage | null
+  retryAt?: number | null
 }
 
-/**
- * 빠른 시작 샙스션을 위한 챈컱 제안
- */
 const SUGGESTIONS = [
   { label: 'todo-app', desc: '투두 앱 만들어줘' },
   { label: 'shop-landing', desc: '쇼핑몰 랜딩 페이지' },

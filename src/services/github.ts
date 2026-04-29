@@ -20,22 +20,11 @@ function toBase64(str: string): string {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))))
 }
 
-/**
- * 파일 경로에서 디렉터리 부분만 추출
- * @param path - 파일 경로
- * @returns 디렉터리 경로
- */
 function dirname(path: string): string {
   const idx = path.lastIndexOf('/')
   return idx >= 0 ? path.slice(0, idx) : ''
 }
 
-/**
- * 상대 경로를 절대 경로로 해석
- * @param fromFile - 기중이 되는 파일 경로
- * @param rel - 상대 경로
- * @returns 절대 경로
- */
 function resolveRelativePath(fromFile: string, rel: string): string {
   const base = dirname(fromFile)
   const parts = `${base}/${rel}`.split('/').filter(Boolean)
@@ -48,12 +37,6 @@ function resolveRelativePath(fromFile: string, rel: string): string {
   return out.join('/')
 }
 
-/**
- * import 문 분석 시 고려할 가능한 파일 확장자 동우 생성
- * @param fromFile - import를 포함한 파일
- * @param rel - 상대 경로
- * @returns 가능한 파일 경로 배열
- */
 function resolveImportCandidates(fromFile: string, rel: string): string[] {
   const base = resolveRelativePath(fromFile, rel)
   const extMatch = base.match(/\.[a-z0-9]+$/i)
@@ -74,11 +57,6 @@ function resolveImportCandidates(fromFile: string, rel: string): string[] {
   return Array.from(new Set(out))
 }
 
-/**
- * 누락된 import 모듈을 위한 폴백 파일 생성
- * @param path - 파일 경로
- * @returns 폴백 코드
- */
 function makeFallbackModule(path: string): string {
   if (path.endsWith('.css')) return '/* generated missing import fallback */\n'
   if (path.endsWith('.vue')) {
@@ -90,12 +68,6 @@ function makeFallbackModule(path: string): string {
   return `export const __vibePlaceholder = true\n\nexport default function VibePlaceholder() {\n  return null\n}\n`
 }
 
-/**
- * 누락된 import된 모듈 자동 생성
- * AI 응답에서 import하지만 구서되지 않은 파일을 자동으로 생성
- * @param files - 생성된 파일 객체
- * @returns 누락된 모듈이 추가된 파일 객체
- */
 function ensureMissingImportedModules(files: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = { ...files }
   const sourceFiles = Object.keys(next).filter((p) => /\.(jsx?|tsx?|mjs|cjs|vue)$/i.test(p))
@@ -125,12 +97,6 @@ function ensureMissingImportedModules(files: Record<string, string>): Record<str
   return next
 }
 
-/**
- * CSS 문법 자동 수정
- * AI가 생성한 CSS에서 흔한 문법 오류 수정
- * @param content - 원본 CSS
- * @returns 수정된 CSS
- */
 function repairCssSyntax(content: string): string {
   let out = content
   // Common LLM mistake: missing semicolon before the next custom property.

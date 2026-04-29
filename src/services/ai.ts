@@ -1,42 +1,25 @@
-/**
- * AI 낵아 메시지 인터페이스
- * role: 'user' 또는 'assistant'를 구분
- */
 export interface Message {
   role: 'user' | 'assistant'
   content: string
-  files?: Record<string, string>  // 지너레이트된 파일들
-  projectType?: 'html' | 'react' | 'vue'  // 낵너레이트된 프로젝트 타입
+  files?: Record<string, string>
+  projectType?: 'html' | 'react' | 'vue'
 }
 
-/**
- * 토큰 사용땠 인터페이스
- * API 호출 단위로 단초단 토큰을 추적랐나
- */
 export interface TokenUsage {
-  promptTokens: number  // 입력 토큰 수
-  completionTokens: number  // 출력 토큰 수
-  totalTokens: number  // 총 토큰 수
-  /** 분당 한도 (-1 = 정보 없음) */
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
   limitPerMin: number
-  /** 분당 남은 토큰 (-1 = 정보 없음) */
   remainingPerMin: number
-  /** 남은 토큰 리셋까지 초 (-1 = 정보 없음) */
   resetInSeconds: number
 }
 
-/**
- * 지원하는 AI 제공업체 타입
- */
 export type AIProvider = 'groq' | 'openai' | 'gemini'
 
-/**
- * AI 모델 메타데이타
- */
 export interface AIModel {
-  id: string  // 모델 ID
-  label: string  // 두표드를 위한 라벨
-  provider: AIProvider  // 기반 제공업체
+  id: string
+  label: string
+  provider: AIProvider
 }
 
 /**
