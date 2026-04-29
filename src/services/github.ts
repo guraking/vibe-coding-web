@@ -159,6 +159,24 @@ function repairJsSyntax(content: string): string {
   return fixed.join('\n')
 }
 
+/**
+ * 프로젝트 빌드 도구 자동 생성 (React/Vue용)
+ * 
+ * HTML의 경우: 파일 그대로 반환
+ * React/Vue의 경우: package.json, vite 설정, 진입점, 기본 컴포넌트 자동 생성
+ * 
+ * 기능:
+ * - 기존 package.json 파싱 및 필수 종속성 추가
+ * - React: vite, @vitejs/plugin-react, React, react-dom 추가
+ * - Vue: vite, @vitejs/plugin-vue, Vue 추가
+ * - vite.config.js/ts 자동 생성
+ * - src/main.jsx/tsx (React) 또는 src/main.js/ts (Vue) 자동 생성
+ * - 기본 App 컴포넌트 자동 생성
+ * - index.html 진입점 자동 생성
+ * 
+ * @param files - 원본 파일 객체
+ * @returns 빌드 도구가 추가된 파일 객체
+ */
 function ensureProjectToolchain(files: Record<string, string>): Record<string, string> {
   const next: Record<string, string> = { ...files }
   const type = detectProjectType(next)
@@ -244,6 +262,22 @@ function ensureProjectToolchain(files: Record<string, string>): Record<string, s
   return next
 }
 
+/**
+ * 배포용 파일 정규화 및 자동 수정
+ * 
+ * 처리 흐름:
+ * 1. 프로젝트 도구체인 확보 (package.json, vite 설정, 진입점)
+ * 2. 누락된 import 모듈 자동 생성 (폴백)
+ * 3. main.jsx/tsx 파일에서 App 컴포넌트 경로 추출
+ * 4. App 컴포넌트 누락 시 기본 컴포넌트 생성
+ * 5. CSS import 누락 시 기본 스타일시트 생성
+ * 6. 모든 CSS에 문법 수정 적용
+ * 7. 모든 JS/TS 파일에 문법 수정 적용
+ * 
+ * @param files - 원본 파일 객체
+ * @param keepRawOutput - true이면 정규화 스킵 (프리뷰용)
+ * @returns 정규화된 배포용 파일 객체
+ */
 function normalizeFilesForBuild(files: Record<string, string>, keepRawOutput = false): Record<string, string> {
   if (keepRawOutput) return { ...files }
   const next: Record<string, string> = ensureMissingImportedModules(ensureProjectToolchain(files))
@@ -423,7 +457,13 @@ export async function updateRepoWithFiles(
   return { owner, repo, branch, url: `https://github.com/${owner}/${repo}` }
 }
 
-/** Base64(GitHub API) → UTF-8 string */
+/** Base64 데이터를 UTF-8 문자열로 디코딩
+ * GitHub API가 반환한 Base64 인코딩 파일 내용을 원본 문자열로 변환
+ * 한글 등 다국어 문자를 올바르게 처리
+ * 
+ * @param b64 - Base64 인코딩된 문자열
+ * @returns 디코딩된 UTF-8 문자열
+ */
 function fromBase64(b64: string): string {
   const binary = atob(b64.replace(/\n/g, ''))
   const bytes = new Uint8Array(binary.length)
@@ -431,14 +471,27 @@ function fromBase64(b64: string): string {
   return new TextDecoder('utf-8').decode(bytes)
 }
 
-/** GitHub URL 파싱: https://github.com/owner/repo[/tree/branch] */
+/**
+ * GitHub URL 파싱: owner, repo, 선택사항 branch 추출
+ * 형식: https://github.com/owner/repo[/tree/branch]
+ * 
+ * @param url - GitHub 저장소 URL
+ * @returns {{ owner, repo, branch? }} 파싱된 저장소 정보
+ * @throws URL 형식이 올바르지 않으면 에러 발생
+ */
 function parseGithubUrl(url: string): { owner: string; repo: string; branch?: string } {
   const match = url.trim().replace(/\.git$/, '').match(/github\.com\/([^/]+)\/([^/]+?)(?:\/tree\/([^/?#]+))?(?:[/?#].*)?$/)
   if (!match) throw new Error('올바른 GitHub URL을 입력하세요\n예: https://github.com/owner/repo')
   return { owner: match[1], repo: match[2], branch: match[3] }
 }
 
-/** URL 파싱 — 실패 시 null 반환 (throw 없음) */
+/**
+ * GitHub URL 안전 파싱 (실패 시 null 반환)
+ * throw 발생 없이 성공/실패를 null로 구분
+ * 
+ * @param url - 파싱할 URL
+ * @returns {{ owner, repo, branch? }} 파싱 성공 시 저장소 정보, 실패 시 null
+ */
 export function tryParseGithubUrl(url: string): { owner: string; repo: string; branch?: string } | null {
   try {
     const match = url.trim().replace(/\.git$/, '').match(/github\.com\/([^/]+)\/([^/]+?)(?:\/tree\/([^/?#]+))?(?:[/?#].*)?$/)
@@ -458,6 +511,11 @@ interface ProjectCache {
 
 const CACHE_PREFIX = 'vibe_project_'
 
+/**
+ * localStorage에서 캐시된 프로젝트 파일 조회
+ * 빠른 재방문/새로고침 시 API 호출 없이 로컬 캐시 사용
+ * 
+ * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @returns 캐시된 프로젝트 정보 (파일, 타입, 브랜치, 캐시 시간)\n */
 export function getCachedProject(owner: string, repo: string): ProjectCache | null {
   try {
     const raw = localStorage.getItem(`${CACHE_PREFIX}${owner}/${repo}`)
@@ -467,6 +525,17 @@ export function getCachedProject(owner: string, repo: string): ProjectCache | nu
   }
 }
 
+/**
+ * 프로젝트 정보를 localStorage에 캐시
+ * 가져온 파일들을 로컬에 임시 저장하여 재방문 시 빠른 로딩 제공
+ * localStorage 용량 초과 시 무시 (에러 throw 없음)
+ * 
+ * @param owner - 저장소 소유자
+ * @param repo - 저장소 이름
+ * @param files - 프로젝트 파일 객체
+ * @param projectType - 프로젝트 타입 (html/react/vue)
+ * @param branch - 대상 브랜치
+ */
 export function setCachedProject(
   owner: string,
   repo: string,
@@ -485,6 +554,24 @@ export function setCachedProject(
 const TEXT_EXT = /\.(html|css|js|jsx|ts|tsx|json|md|txt|svg|vue|mjs|cjs|yaml|yml|toml|gitignore|prettierrc|eslintrc|babelrc|env\.example|nvmrc|editorconfig)$/i
 const SKIP_DIRS = /^(node_modules|\.git|dist|build|\.next|\.nuxt|coverage|\.cache)\//
 
+/**
+ * GitHub 저장소에서 프로젝트 파일 가져오기
+ * 
+ * 처리 흐름:
+ * 1. URL에서 owner/repo/branch 파싱
+ * 2. 기본 브랜치 조회 (branch 미지정 시)
+ * 3. 파일 트리 전체 조회 (최대 60개 텍스트 파일)
+ * 4. node_modules, .git 등 불필요한 디렉터리 제외
+ * 5. 300KB 이상 파일 제외 (프리뷰 성능)
+ * 6. 병렬 fetch로 파일 내용 다운로드 (5개씩 배치)
+ * 7. Base64 디코딩
+ * 8. 프로젝트 타입 자동 감지 및 캐시 저장
+ * 
+ * @param repoUrl - GitHub 저장소 URL (https://github.com/owner/repo[/tree/branch])
+ * @param token - GitHub Personal Access Token (선택사항, 비공개 저장소 접근용)
+ * @returns {{ files, owner, repo, branch }} 가져온 파일들과 저장소 정보
+ * @throws 저장소 접근 실패 또는 파일이 없으면 에러 발생
+ */
 export async function fetchRepoFiles(
   repoUrl: string,
   token?: string,
@@ -538,10 +625,19 @@ export async function fetchRepoFiles(
   return { files, owner, repo, branch }
 }
 
+/**
+ * 지정된 시간(ms) 동안 대기
+ * 비동기 작업 간 딜레이 추가 또는 폴링 루프 지연
+ * 
+ * @param ms - 대기 시간 (밀리초)
+ * @returns 대기 완료 후 resolve되는 Promise
+ */
 function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms))
 }
 
+/**
+ * 레거시 진입점 경로 자동 수정\n * GitHub Pages 배포 시 절대 경로(/src/main.jsx)에서 상대 경로(./src/main.jsx)로 변환\n * 기존 저장소의 index.html이 절대 경로 방식이면 자동으로 수정\n * 실패 시 무시 (배포 흐름에 영향 없음)\n * \n * @param token - GitHub Personal Access Token\n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param branch - 대상 브랜치\n * @param onStatus - 진행 상황 메시지 콜백\n */
 async function patchLegacyEntryScriptPath(
   token: string,
   owner: string,
@@ -588,6 +684,9 @@ async function patchLegacyEntryScriptPath(
   }
 }
 
+/**
+ * GitHub Pages 배포용 GitHub Actions 워크플로우 YAML 생성
+n * \n * 기능:\n * - Push 또는 수동 workflow_dispatch 트리거\n * - npm ci/npm install으로 종속성 설치\n * - vite build 또는 npm run build로 빌드\n * - dist 디렉터리를 GitHub Pages 아티팩트로 업로드\n * - actions/deploy-pages로 자동 배포\n * \n * @param branch - 배포할 브랜치 이름\n * @param repo - 저장소 이름 (상대 경로 base 생성용)\n * @returns GitHub Actions 워크플로우 YAML 문자열\n */
 function generateDeployWorkflow(branch: string, repo: string): string {
   return `name: Deploy to GitHub Pages
 on:
@@ -815,9 +914,7 @@ export async function deployToGitHubPages(
 }
 
 /**
- * GitHub Deployments API → GitHub Pages 순서로 배포 URL 탐색.
- * 찾지 못하면 null 반환.
- */
+ * GitHub 배포 URL 탐색\n * \n * 우선순위:\n * 1. Deployments API → environment_url 또는 target_url\n * 2. GitHub Pages API → html_url\n * \n * @param owner - 저장소 소유자\n * @param repo - 저장소 이름\n * @param token - GitHub Personal Access Token (선택사항)\n * @returns 배포된 페이지 URL, 찾지 못하면 null\n */
 export async function fetchDeploymentUrl(
   owner: string,
   repo: string,
@@ -863,6 +960,10 @@ export async function fetchDeploymentUrl(
   return null
 }
 
+/**
+ * 프로젝트 타입 자동 감지
+ * 
+ * 감지 로직 (우선순위):\n * 1. .vue 파일 있으면 → vue\n * 2. .jsx, .tsx 파일 있으면 → react\n * 3. package.json에서 react 의존성 확인 → react\n * 4. package.json에서 vue 의존성 확인 → vue\n * 5. 그 외 → html\n * \n * @param files - 프로젝트 파일 객체\n * @returns 감지된 프로젝트 타입\n */
 export function detectProjectType(files: Record<string, string>): 'html' | 'react' | 'vue' {
   const names = Object.keys(files)
   if (names.some(f => f.endsWith('.vue'))) return 'vue'
