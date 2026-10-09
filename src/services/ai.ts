@@ -82,7 +82,6 @@ HTML mode rules:
 - index.html links style.css and app.js as relative paths
 - Add CDN libs in <head>: Tailwind, Chart.js, Alpine.js, Three.js, etc.
 - NEVER inline CSS in style tags or JS in script tags
-- Visually stunning: animations, gradients, shadows, dark theme by default
 - Fully interactive JavaScript, responsive layout
 
 ## Mode 2: React Project
@@ -119,7 +118,7 @@ createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMo
 </VIBE_FILE>
 <VIBE_FILE name="src/index.css">
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8f4; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 </VIBE_FILE>
 <VIBE_FILE name="src/App.jsx">
 // Main App component
@@ -134,7 +133,6 @@ React mode rules:
 - In index.html, entry script path MUST be relative ('./src/main.jsx'), never absolute ('/src/main.jsx')
 - Split into meaningful components in src/components/
 - Fully interactive with React hooks (useState, useEffect, etc.)
-- Dark theme by default
 - When refining: keep design language consistent, improve only what was asked
 - CRITICAL SYNTAX: Every element in an array of objects MUST start with { — never omit the opening brace
   WRONG: [ label: 'Home', href: '#' }, ... ]
@@ -174,7 +172,7 @@ createApp(App).mount('#app')
 </VIBE_FILE>
 <VIBE_FILE name="src/index.css">
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8f4; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 </VIBE_FILE>
 <VIBE_FILE name="src/App.vue">
 <template>
@@ -198,7 +196,6 @@ Vue mode rules:
 - Use Vue 3 Composition API with <script setup>
 - Split into .vue SFC components in src/components/
 - Use ref(), reactive(), computed(), onMounted() as needed
-- Dark theme by default
 - When refining: keep design language consistent, improve only what was asked`
 
 /**

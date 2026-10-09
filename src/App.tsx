@@ -211,6 +211,14 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [chatId, isLoading, messages, projectFiles, projectType])
 
+  // 생성 중 응답은 이 페이지가 직접 받고 있어서 새로고침·탭 닫기 시 끊기고 저장되지 않는다. 떠나기 전에 브라우저 확인창을 띄운다.
+  useEffect(() => {
+    if (!isLoading) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [isLoading])
+
   /**
    * 드래그 시작 핸들러
    * 마우스 클릭 시 드래그 초기 상태 저장
