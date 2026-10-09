@@ -42,6 +42,13 @@ function isLikelyMarkup(text: string): boolean {
  * - React: package.json + src/main.jsx(tsx) + src/App.jsx(tsx)
  * - Vue: package.json + src/main.js(ts) + src/App.vue
  */
+type ProjectType = 'html' | 'react' | 'vue'
+
+// 리파인 응답은 바뀐 파일만 담을 수 있으므로, 같은 종류의 프로젝트면 요청 직전 파일 위에 합친다. 종류가 바뀌면 응답 파일로 교체한다.
+function mergeFiles(base: { files: Record<string, string>; type: ProjectType }, files: Record<string, string>, type: ProjectType) {
+  return type === base.type ? { ...base.files, ...files } : files
+}
+
 function isValidGeneratedProject(files: Record<string, string>, projectType: 'html' | 'react' | 'vue'): boolean {
   if (Object.keys(files).length === 0) return false
   if (projectType === 'html') {
@@ -124,6 +131,8 @@ export default function App() {
   const bufferRef = useRef('')
   // 진행 중인 생성 요청. 중지 버튼이 abort() 한다.
   const abortRef = useRef<AbortController | null>(null)
+  // 진행 중인 요청 직전의 프로젝트. 응답 파일을 이 위에 합친다.
+  const baseProjectRef = useRef<{ files: Record<string, string>; type: ProjectType }>({ files: {}, type: 'html' })
   const lastRealtimePatchRef = useRef('')
   const lastRealtimePatchAtRef = useRef(0)
   const realtimePatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -272,8 +281,9 @@ export default function App() {
   ) => {
     lastRealtimePatchRef.current = fingerprint
     lastRealtimePatchAtRef.current = Date.now()
-    projectFilesRef.current = files
-    setProjectFiles(files)
+    const merged = mergeFiles(baseProjectRef.current, files, pType)
+    projectFilesRef.current = merged
+    setProjectFiles(merged)
     setProjectType(pType)
   }, [])
 
@@ -340,7 +350,6 @@ export default function App() {
     }
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
-    setAnswerIndex(history.length)
     // 새 대화의 첫 요청이면 이때 저장용 id 를 만든다. 응답이 끝나면 저장 effect 가 저장한다.
     if (!chatId) {
       setChatId(crypto.randomUUID())
@@ -350,6 +359,7 @@ export default function App() {
     // 중지하면 스트리밍 중 반영된 일부 파일 대신 이 상태로 되돌린다.
     const prevFiles = projectFilesRef.current
     const prevType = projectType
+    baseProjectRef.current = { files: prevFiles, type: prevType }
     const controller = new AbortController()
     abortRef.current = controller
     let panelFocused = false
@@ -360,7 +370,10 @@ export default function App() {
         // shortcut: 모델이 태그 앞에 설명을 먼저 쓰면 답변 탭이 열린다. 오분류가 잦으면 '<VIBE_' 등장 시 미리보기로 재전환한다.
         if (!panelFocused && bufferRef.current.trim()) {
           panelFocused = true
-          focusPanel(bufferRef.current.trim().startsWith('<') ? 'preview' : 'answer')
+          const isCode = bufferRef.current.trim().startsWith('<')
+          focusPanel(isCode ? 'preview' : 'answer')
+          // 코드 생성 응답은 설명이 끝에 오므로, 끝날 때까지 답변 탭에 이전 답변을 남겨 둔다.
+          if (!isCode) setAnswerIndex(history.length)
         }
         const parsedChunk = parseVibe(bufferRef.current)
         const { explanation } = parsedChunk
@@ -407,7 +420,7 @@ export default function App() {
 
         // Auto-repair response format if model didn't generate valid code structure
       // 코드를 만들려다(<VIBE_FILE> 존재) 구조가 깨진 경우에만 보정한다. 태그가 없으면 일반 대화 답변이다.
-      if (bufferRef.current.includes('<VIBE_FILE') && !isValidGeneratedProject(parsed.files, parsed.projectType)) {
+      if (bufferRef.current.includes('<VIBE_FILE') && !isValidGeneratedProject(mergeFiles(baseProjectRef.current, parsed.files, parsed.projectType), parsed.projectType)) {
         const repairPrompt = [
           '아래 원문 응답은 형식이 깨졌거나 코드가 부족합니다.',
           '반드시 <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식으로만 다시 출력하세요.',
@@ -441,7 +454,7 @@ export default function App() {
         }
 
         const repaired = parseVibe(repairedRaw)
-        if (isValidGeneratedProject(repaired.files, repaired.projectType)) {
+        if (isValidGeneratedProject(mergeFiles(baseProjectRef.current, repaired.files, repaired.projectType), repaired.projectType)) {
           parsed = repaired
           bufferRef.current = repairedRaw
         }
@@ -449,8 +462,9 @@ export default function App() {
 
       const { files, explanation, projectType: pType } = parsed
       if (Object.keys(files).length > 0) {
-        projectFilesRef.current = files
-        setProjectFiles(files)
+        const merged = mergeFiles(baseProjectRef.current, files, pType)
+        projectFilesRef.current = merged
+        setProjectFiles(merged)
         setProjectType(pType)
       }
       setMessages((prev) => {
@@ -496,6 +510,8 @@ export default function App() {
         realtimePatchTimerRef.current = null
       }
       abortRef.current = null
+      // 완료·오류·중지 모두 이 응답을 답변 탭에 연다.
+      setAnswerIndex(history.length)
       setIsLoading(false)
     }
   }
