@@ -48,6 +48,20 @@ const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer w
 
 If the user is chatting or asking a question rather than requesting something to build or change, reply in plain Korean text with no VIBE tags.
 
+## File downloads
+When the user asks for a file or document (Excel, CSV, PDF, Word, PowerPoint, image, JSON, text, ZIP),
+build the page that shows the content AND a visible download button that saves a real file.
+Load libraries by <script> in index.html with these exact URLs:
+- Excel (.xlsx): https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js  (XLSX.writeFile)
+- PDF: https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js
+  (render an HTML element; never jsPDF text APIs — their built-in fonts cannot draw Korean)
+- Word (.docx): https://unpkg.com/docx@8.5.0/build/index.umd.js  (docx.Packer.toBlob)
+- PowerPoint (.pptx): https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js  (pptx.writeFile)
+- ZIP: https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
+- CSV / JSON / TXT / SVG: no library — new Blob + <a download>. Prefix CSV with "\\uFEFF" so Excel reads Korean.
+- PNG image: canvas.toBlob, or html2canvas for an HTML area.
+Use Korean file names that describe the content (e.g. "매출표.xlsx").
+
 ## Mode 1: HTML Project (default)
 For simple web pages, landing pages, widgets, games, calculators, dashboards, etc.:
 

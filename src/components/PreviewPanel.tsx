@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History, Download } from 'lucide-react'
+import JSZip from 'jszip'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
 import AnswerView from './AnswerView'
@@ -230,6 +231,23 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   })
 
   const hasFiles = fileNames.length > 0
+
+  // 파일 이름의 '/' 는 JSZip 이 폴더로 만든다(src/App.jsx → src 폴더).
+  const downloadZip = async () => {
+    try {
+      const zip = new JSZip()
+      for (const [name, content] of Object.entries(files)) zip.file(name, content)
+      const url = URL.createObjectURL(await zip.generateAsync({ type: 'blob' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'vibe-project.zip'
+      a.click()
+      // 클릭 직후 바로 해제하면 일부 브라우저(Safari)에서 다운로드가 시작되기 전에 URL 이 사라진다.
+      setTimeout(() => URL.revokeObjectURL(url))
+    } catch (err) {
+      alert(`ZIP 파일을 만들지 못했어요: ${err instanceof Error ? err.message : err}`)
+    }
+  }
 
   // Blob URL for HTML projects
   const blobUrl = useMemo(() => {
@@ -539,6 +557,19 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           <FolderGit2 style={{ width: 12, height: 12 }} />
           <span>import</span>
         </button>
+
+        {/* 생성된 파일 전체를 폴더 구조 그대로 ZIP 으로 내려받는다. */}
+        {hasFiles && (
+          <button onClick={downloadZip}
+            className="flex items-center gap-1.5 transition-all"
+            style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
+            title="프로젝트 전체를 ZIP 으로 다운로드">
+            <Download style={{ width: 12, height: 12 }} />
+            <span>download</span>
+          </button>
+        )}
 
         {/* GitHub export button */}
         {hasFiles && (
