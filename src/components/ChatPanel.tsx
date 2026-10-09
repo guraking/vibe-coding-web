@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText, ImagePlus, X, Square } from 'lucide-react'
+import { ArrowUp, RotateCcw, AlertCircle, FileText, ImagePlus, X, Square } from 'lucide-react'
+import ClaudeIcon from './ClaudeIcon'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
 import { formatUsd } from '../services/usage'
@@ -249,7 +250,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
               ) : (
                 /* Claude 메시지: 본문은 오른쪽 패널, 여기서는 여는 카드. 오류는 카드 없이 바로 보여준다. */
                 <div key={i} className="flex gap-2.5 min-w-0">
-                  <Sparkle aria-hidden="true" style={{ width: 16, height: 16, color: 'var(--accent)', flexShrink: 0, marginTop: 12 }} fill="currentColor" />
+                  <ClaudeIcon size={16} style={{ color: 'var(--accent)', marginTop: 12 }} />
                   {!msg.content
                     ? <Dots />
                     : msg.content.startsWith('오류:')
@@ -283,7 +284,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
             ))}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-2.5">
-                <Sparkle aria-hidden="true" style={{ width: 16, height: 16, color: 'var(--accent)', flexShrink: 0, marginTop: 3 }} fill="currentColor" />
+                <ClaudeIcon size={16} style={{ color: 'var(--accent)', marginTop: 3 }} />
                 <Dots />
               </div>
             )}
