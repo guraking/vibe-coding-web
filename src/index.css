@@ -150,8 +150,9 @@
 }
 
 /* 답변 패널 마크다운 (AnswerView) */
+/* 패널 너비를 따라가되, 아주 넓은 모니터에서도 한 줄이 지나치게 길어지지 않도록 90% 까지 */
 .answer-md {
-  max-width: 760px;
+  max-width: 90%;
   margin: 0 auto;
   padding: 28px 32px 48px;
   color: var(--txt);
@@ -232,7 +233,9 @@
 .answer-code pre {
   margin: 0;
   padding: 14px 16px;
-  overflow-x: auto;
+  /* 긴 줄은 다음 줄로 넘겨 가로 스크롤을 없앤다. 들여쓰기 공백은 유지된다. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-family: var(--mono-font);
   font-size: 13px;
   line-height: 1.65;
@@ -251,7 +254,7 @@
 
   ::-webkit-scrollbar { width: 2px; height: 2px; }
 
-  .answer-md { padding: 20px 16px 40px; }
+  .answer-md { max-width: none; padding: 20px 16px 40px; }
 
   /* Safe area support */
   body {
