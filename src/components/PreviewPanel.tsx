@@ -520,9 +520,10 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
         style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 44, padding: '0 8px' }}>
         <div role="tablist" className="flex items-center gap-0.5"
           style={{ background: 'var(--bg-card)', padding: 3, borderRadius: 'var(--radius-md)' }}>
-          <TabBtn id="answer" icon={FileText} label="답변" />
-          <TabBtn id="preview" icon={Eye} label="미리보기" />
-          <TabBtn id="code" icon={Code2} label={`코드${hasFiles ? ` ${fileNames.length}` : ''}`} />
+          {/* 컴포넌트(<TabBtn />)로 쓰면 렌더마다 새 타입이 되어 버튼이 다시 만들어지고, 스트리밍 중 클릭이 성립하지 않는다. */}
+          {TabBtn({ id: 'answer', icon: FileText, label: '답변' })}
+          {TabBtn({ id: 'preview', icon: Eye, label: '미리보기' })}
+          {TabBtn({ id: 'code', icon: Code2, label: `코드${hasFiles ? ` ${fileNames.length}` : ''}` })}
         </div>
         <div className="w-2" />
 

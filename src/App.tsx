@@ -122,6 +122,8 @@ export default function App() {
     return saved && MODELS.some((m) => m.id === saved) ? saved : MODELS[0].id
   })
   const bufferRef = useRef('')
+  // 진행 중인 생성 요청. 중지 버튼이 abort() 한다.
+  const abortRef = useRef<AbortController | null>(null)
   const lastRealtimePatchRef = useRef('')
   const lastRealtimePatchAtRef = useRef(0)
   const realtimePatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -345,9 +347,14 @@ export default function App() {
       chatCreatedAtRef.current = Date.now()
     }
     unsavedRef.current = true
+    // 중지하면 스트리밍 중 반영된 일부 파일 대신 이 상태로 되돌린다.
+    const prevFiles = projectFilesRef.current
+    const prevType = projectType
+    const controller = new AbortController()
+    abortRef.current = controller
     let panelFocused = false
     try {
-      for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage)) {
+      for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage, controller.signal)) {
         bufferRef.current += chunk
         // 응답 첫 글자로 패널 탭을 고른다: 코드 생성 응답은 <VIBE_FILE> 로 시작하므로 미리보기, 그 외는 답변.
         // shortcut: 모델이 태그 앞에 설명을 먼저 쓰면 답변 탭이 열린다. 오분류가 잦으면 '<VIBE_' 등장 시 미리보기로 재전환한다.
@@ -428,6 +435,7 @@ export default function App() {
           [{ role: 'user', content: repairPrompt }],
           Object.keys(projectFiles).length ? projectFiles : undefined,
           recordUsage,
+          controller.signal,
         )) {
           repairedRaw += chunk
         }
@@ -462,6 +470,19 @@ export default function App() {
         clearTimeout(realtimePatchTimerRef.current)
         realtimePatchTimerRef.current = null
       }
+      if (controller.signal.aborted) {
+        projectFilesRef.current = prevFiles
+        setProjectFiles(prevFiles)
+        setProjectType(prevType)
+        const { explanation } = parseVibe(bufferRef.current)
+        const partial = explanation || (bufferRef.current.includes('<VIBE_') ? '' : bufferRef.current.trim())
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: `${partial ? `${partial}\n\n` : ''}(생성을 중지했습니다)`, files: {} }
+          return updated
+        })
+        return
+      }
       const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
       setMessages((prev) => {
         const updated = [...prev]
@@ -474,9 +495,12 @@ export default function App() {
         clearTimeout(realtimePatchTimerRef.current)
         realtimePatchTimerRef.current = null
       }
+      abortRef.current = null
       setIsLoading(false)
     }
   }
+
+  const handleStop = () => abortRef.current?.abort()
 
   /**
    * 프로젝트 가져오기 핸들러
@@ -643,6 +667,7 @@ export default function App() {
           <ChatPanel
             messages={messages}
             onSend={handleSend}
+            onStop={handleStop}
             isLoading={isLoading}
             hasApiKey={!!activeApiKey}
             width={isMobile ? undefined : chatWidth}

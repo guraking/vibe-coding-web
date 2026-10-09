@@ -230,6 +230,8 @@ export async function* streamCode(
   messages: Message[],
   currentFiles?: Record<string, string>,
   onUsage?: (usage: TokenUsage) => void,
+  // abort() 하면 스트림이 끊기고 반복이 예외를 던진다. 중지된 요청은 onUsage 를 부르지 않는다.
+  signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
   const currentContext = currentFiles && Object.keys(currentFiles).length > 0
     ? `\n\nThe user is refining their existing project. Current files:\n` +
@@ -260,7 +262,7 @@ export async function* streamCode(
         : m.content,
     })),
     ...(useFallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
-  })
+  }, { signal })
 
   for await (const event of stream) {
     if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') yield event.delta.text

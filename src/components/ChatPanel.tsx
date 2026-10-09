@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText, ImagePlus, X } from 'lucide-react'
+import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText, ImagePlus, X, Square } from 'lucide-react'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
 import { formatUsd } from '../services/usage'
@@ -42,6 +42,8 @@ function ClaudeMascot() {
 interface Props {
   messages: Message[]
   onSend: (prompt: string, images: MessageImage[]) => void
+  // 생성 중에 전송 버튼 자리의 중지 버튼이 부른다.
+  onStop: () => void
   isLoading: boolean
   hasApiKey: boolean
   width?: number
@@ -92,7 +94,7 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onNewChat }: Props) {
+export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onNewChat }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -358,22 +360,23 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
                 Shift+Enter 줄바꿈
               </span>
             </span>
-            <button onClick={submit} disabled={!canSend}
-              aria-label={isLoading ? '생성 중' : '전송'}
+            <button onClick={isLoading ? onStop : submit} disabled={!isLoading && !canSend}
+              aria-label={isLoading ? '생성 중지' : '전송'}
+              title={isLoading ? '생성 중지' : undefined}
               className="flex items-center justify-center transition-colors"
               style={{
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: canSend ? 'var(--accent)' : 'var(--bg-hover)',
-                color: canSend ? 'var(--on-accent)' : 'var(--txt-3)',
+                background: canSend || isLoading ? 'var(--accent)' : 'var(--bg-hover)',
+                color: canSend || isLoading ? 'var(--on-accent)' : 'var(--txt-3)',
                 border: 'none',
-                cursor: canSend ? 'pointer' : 'default',
+                cursor: canSend || isLoading ? 'pointer' : 'default',
               }}
-              onMouseEnter={e => { if (canSend) e.currentTarget.style.background = 'var(--accent-h)' }}
-              onMouseLeave={e => { if (canSend) e.currentTarget.style.background = 'var(--accent)' }}>
+              onMouseEnter={e => { if (canSend || isLoading) e.currentTarget.style.background = 'var(--accent-h)' }}
+              onMouseLeave={e => { if (canSend || isLoading) e.currentTarget.style.background = 'var(--accent)' }}>
               {isLoading
-                ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--border)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
+                ? <Square style={{ width: 12, height: 12 }} fill="currentColor" />
                 : <ArrowUp style={{ width: 16, height: 16 }} />}
             </button>
           </div>
