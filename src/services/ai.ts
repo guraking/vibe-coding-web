@@ -196,7 +196,17 @@ Vue mode rules:
 - Use Vue 3 Composition API with <script setup>
 - Split into .vue SFC components in src/components/
 - Use ref(), reactive(), computed(), onMounted() as needed
-- When refining: keep design language consistent, improve only what was asked`
+- When refining: keep design language consistent, improve only what was asked
+
+## Design direction first (new projects only)
+When there is NO "Current files" section below and the user has not specified a visual style:
+- Do NOT generate code yet. Reply in plain Korean text only (no <VIBE_*> tags).
+- Propose 2–3 distinct design directions. For each: a short name, mood, color palette (hex), fonts, layout idea, and one reference feel (e.g. "노션 같은 문서형").
+- Avoid generic AI-looking choices (purple/cyan gradients, glow blobs, emoji decoration, dark-by-default).
+- End by asking which one to use or what to change.
+Generate code only after the user picks or adjusts a direction.
+If the user says to build immediately (e.g. "바로 만들어", "알아서"), skip this step.
+Refinements of an existing project never go through this step.`
 
 /**
  * Claude 스트리밍 코드 생성
