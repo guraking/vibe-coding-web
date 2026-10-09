@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { ArrowUp, RotateCcw, AlertCircle, FileText, ImagePlus, X, Square } from 'lucide-react'
-import ClaudeIcon from './ClaudeIcon'
+import ClaudeMascot from './ClaudeMascot'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
 import { formatUsd } from '../services/usage'
@@ -8,27 +8,6 @@ import type { UsageTotals } from '../services/usage'
 
 // 실제 잔액·청구액은 일반 API 키로 조회할 수 없어 Console 대시보드로 안내한다.
 const BILLING_URL = 'https://platform.claude.com/dashboard'
-
-// 빈 대화 화면의 픽셀 마스코트. 몸통·팔·다리는 강조색, 눈은 테마와 상관없이 짙은 색으로 고정한다.
-function ClaudeMascot() {
-  return (
-    <svg viewBox="0 0 16 10" width={64} height={40} shapeRendering="crispEdges" aria-hidden="true">
-      <g fill="var(--accent)">
-        <rect x="2" y="0" width="12" height="8" />
-        <rect x="0" y="3" width="2" height="2" />
-        <rect x="14" y="3" width="2" height="2" />
-        <rect x="3" y="8" width="1" height="2" />
-        <rect x="5" y="8" width="1" height="2" />
-        <rect x="10" y="8" width="1" height="2" />
-        <rect x="12" y="8" width="1" height="2" />
-      </g>
-      <g fill="#141413">
-        <rect x="4" y="2" width="1" height="2" />
-        <rect x="11" y="2" width="1" height="2" />
-      </g>
-    </svg>
-  )
-}
 
 /**
  * ChatPanel 컴포넌트: 좌측 채팅 패널
@@ -187,7 +166,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
           <div className="flex flex-col h-full">
             {/* Empty state */}
             <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-              <ClaudeMascot />
+              <ClaudeMascot width={64} />
               <div className="text-center">
                 <p style={{ color: 'var(--txt)', fontFamily: 'var(--display-font)', fontSize: 20, fontWeight: 600, marginBottom: 6 }}>
                   무엇을 만들어 볼까요?
@@ -250,7 +229,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
               ) : (
                 /* Claude 메시지: 본문은 오른쪽 패널, 여기서는 여는 카드. 오류는 카드 없이 바로 보여준다. */
                 <div key={i} className="flex gap-2.5 min-w-0">
-                  <ClaudeIcon size={16} style={{ color: 'var(--accent)', marginTop: 12 }} />
+                  <ClaudeMascot width={32} style={{ marginTop: 12 }} />
                   {!msg.content
                     ? <Dots />
                     : msg.content.startsWith('오류:')
@@ -284,7 +263,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
             ))}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-2.5">
-                <ClaudeIcon size={16} style={{ color: 'var(--accent)', marginTop: 3 }} />
+                <ClaudeMascot width={32} style={{ marginTop: 3 }} />
                 <Dots />
               </div>
             )}

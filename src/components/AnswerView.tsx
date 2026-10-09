@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
-import ClaudeIcon from './ClaudeIcon'
+import ClaudeMascot from './ClaudeMascot'
 import type { Message } from '../services/ai'
 import { highlightCode } from '../services/highlight'
 
@@ -61,7 +61,7 @@ export default function AnswerView({ message }: { message: Message | null }) {
   if (!message) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3" style={{ color: 'var(--txt-3)' }}>
-        <ClaudeIcon size={28} style={{ color: 'var(--accent)' }} />
+        <ClaudeMascot width={48} />
         <p style={{ fontSize: 'var(--fs-md)' }}>Claude의 답변이 여기에 표시됩니다</p>
         <ul className="answer-tips">
           <li>새 프로젝트는 디자인 방향 2~3안을 먼저 받고, 번호로 골라 시작합니다</li>
