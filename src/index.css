@@ -236,6 +236,16 @@
   background: var(--bg-card);
   border-right: 1px solid var(--border);
 }
+.sidebar-rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+}
 .sidebar-new {
   display: flex;
   align-items: center;

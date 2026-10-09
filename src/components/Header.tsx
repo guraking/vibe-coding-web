@@ -53,7 +53,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
         style={{ height: 48, padding: '0 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
         {/* 펼쳐져 있을 때는 사이드바 안의 접기 버튼을 쓴다. */}
-        {!sidebarOpen && (
+        {isMobile && !sidebarOpen && (
           <button onClick={onToggleSidebar} className="icon-btn" aria-label="대화 목록 펼치기" aria-expanded={false}>
             <PanelLeft style={{ width: 18, height: 18 }} />
           </button>

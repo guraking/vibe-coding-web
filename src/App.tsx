@@ -11,6 +11,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
+import { PanelLeft } from 'lucide-react'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
 import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
 import type { ChatSummary } from './services/chatStore'
@@ -611,7 +612,14 @@ export default function App() {
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">
-        {!isMobile && sidebarOpen && <div className="flex-shrink-0">{sidebar}</div>}
+        {/* 데스크톱: 접으면 펼치기 버튼만 담은 레일을 남긴다. */}
+        {!isMobile && (sidebarOpen
+          ? <div className="flex-shrink-0">{sidebar}</div>
+          : <div className="sidebar-rail">
+              <button onClick={toggleSidebar} className="icon-btn" aria-label="대화 목록 펼치기" aria-expanded={false}>
+                <PanelLeft style={{ width: 18, height: 18 }} />
+              </button>
+            </div>)}
         {/* 모바일에서도 두 패널을 모두 마운트해 둔다. 탭 전환으로 입력 중인 내용·배포 상태가 사라지지 않게 하기 위함이다. */}
         <div className={`flex min-w-0 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'chat' ? 'hidden' : ''}`}>
           <ChatPanel
