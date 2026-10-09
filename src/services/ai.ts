@@ -21,13 +21,20 @@ export interface AIModel {
   label: string
   // 서버 측 refusal fallback 지원 여부. Haiku 는 지원하지 않는다.
   fallback: boolean
+  // 100만 토큰당 USD 단가. 예상 비용 표시에만 쓴다.
+  inputPerMTok: number
+  outputPerMTok: number
+  // 프롬프트가 overTokens 를 넘으면 입·출력 단가에 multiplier 를 곱한다.
+  longPrompt?: { overTokens: number; multiplier: number }
 }
 
 // 첫 항목이 기본 모델이다.
+// 단가 출처: Anthropic 공식 가격표(2026-10 기준). 가격이 바뀌면 여기만 고친다.
 export const MODELS: AIModel[] = [
-  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true },
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', fallback: true },
-  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', fallback: false },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true, inputPerMTok: 4, outputPerMTok: 20 },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', fallback: true, inputPerMTok: 2, outputPerMTok: 10 },
+  // Haiku 5.5 는 프롬프트 10만 토큰 초과 시 $0.50 / $2.50 (5배)
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', fallback: false, inputPerMTok: 0.1, outputPerMTok: 0.5, longPrompt: { overTokens: 100_000, multiplier: 5 } },
 ]
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer who builds beautiful multi-file web projects instantly from natural language.

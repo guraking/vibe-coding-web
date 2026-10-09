@@ -1,6 +1,11 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText } from 'lucide-react'
 import type { Message, TokenUsage } from '../services/ai'
+import { formatUsd } from '../services/usage'
+import type { UsageTotals } from '../services/usage'
+
+// 실제 잔액·청구액은 일반 API 키로 조회할 수 없어 Console 결제 화면으로 안내한다.
+const BILLING_URL = 'https://platform.claude.com/settings/billing'
 
 /**
  * ChatPanel 컴포넌트: 좌측 채팅 패널
@@ -19,6 +24,10 @@ interface Props {
   hasApiKey: boolean
   width?: number
   tokenUsage?: TokenUsage | null
+  // 마지막 요청의 예상 비용(USD)과 이 브라우저의 오늘·누적 합계
+  lastCost: number
+  usageTotals: UsageTotals
+  onResetUsage: () => void
   // Claude 답변 본문은 오른쪽 패널에 표시하고, 여기서는 카드로만 보여준다.
   activeAnswerIndex: number | null
   onOpenAnswer: (index: number) => void
@@ -59,7 +68,7 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, activeAnswerIndex, onOpenAnswer }: Props) {
+export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -277,11 +286,29 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
         </div>
       </div>
 
-      {/* 마지막 요청의 토큰 사용량 */}
-      {tokenUsage && (
-        <p className="flex-shrink-0 px-4 pb-3" style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)', fontVariantNumeric: 'tabular-nums' }}>
-          in {tokenUsage.promptTokens.toLocaleString()} · out {tokenUsage.completionTokens.toLocaleString()} · 총 {tokenUsage.totalTokens.toLocaleString()} 토큰
-        </p>
+      {/* 사용량: 이번 요청 + 이 브라우저의 오늘·누적 예상 비용. 비용은 단가로 계산한 근사값이다. */}
+      {(tokenUsage || usageTotals.totalTokens > 0) && (
+        <div className="flex-shrink-0 px-4 pb-3 flex flex-col gap-0.5"
+          style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)', fontVariantNumeric: 'tabular-nums' }}>
+          {tokenUsage && (
+            <span>
+              이번 in {tokenUsage.promptTokens.toLocaleString()} · out {tokenUsage.completionTokens.toLocaleString()} · 약 {formatUsd(lastCost)}
+            </span>
+          )}
+          <span className="flex items-center gap-2 flex-wrap">
+            <span title="이 브라우저에서 보낸 요청만 합산한 예상 비용입니다">
+              오늘 약 {formatUsd(usageTotals.todayCost)} · 누적 약 {formatUsd(usageTotals.totalCost)}
+            </span>
+            <button onClick={onResetUsage}
+              style={{ color: 'var(--txt-2)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>
+              초기화
+            </button>
+            <a href={BILLING_URL} target="_blank" rel="noopener noreferrer"
+              style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+              실제 잔액 보기
+            </a>
+          </span>
+        </div>
       )}
     </div>
   )

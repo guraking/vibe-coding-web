@@ -18,6 +18,7 @@ import type { PanelTab } from './components/PreviewPanel'
 // AI 서비스 함수들 (스트리밍, 파싱, 모델 정보)
 import { streamCode, parseVibe, MODELS } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
+import { addUsage, estimateCost, loadUsage, resetUsage } from './services/usage'
 
 /**
  * HTML 마크업 판별 함수
@@ -88,6 +89,14 @@ export default function App() {
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
+  const [lastCost, setLastCost] = useState(0)
+  const [usageTotals, setUsageTotals] = useState(loadUsage)
+  // 요청 1건이 끝날 때마다 호출된다. 화면의 '이번' 값을 바꾸고 오늘·누적 합계에 더한다.
+  const recordUsage = (usage: TokenUsage) => {
+    setTokenUsage(usage)
+    setLastCost(estimateCost(activeModel, usage))
+    setUsageTotals(addUsage(activeModel, usage))
+  }
   // 오른쪽 패널 '답변' 탭에 띄울 메시지 위치와, 패널 탭 전환 요청
   const [answerIndex, setAnswerIndex] = useState<number | null>(null)
   const [panelFocus, setPanelFocus] = useState<{ tab: PanelTab; seq: number }>({ tab: 'preview', seq: 0 })
@@ -244,7 +253,7 @@ export default function App() {
     setAnswerIndex(history.length)
     let panelFocused = false
     try {
-      for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
+      for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage)) {
         bufferRef.current += chunk
         // 응답 첫 글자로 패널 탭을 고른다: 코드 생성 응답은 <VIBE_FILE> 로 시작하므로 미리보기, 그 외는 답변.
         // shortcut: 모델이 태그 앞에 설명을 먼저 쓰면 답변 탭이 열린다. 오분류가 잦으면 '<VIBE_' 등장 시 미리보기로 재전환한다.
@@ -324,7 +333,7 @@ export default function App() {
           activeModel,
           [{ role: 'user', content: repairPrompt }],
           Object.keys(projectFiles).length ? projectFiles : undefined,
-          setTokenUsage,
+          recordUsage,
         )) {
           repairedRaw += chunk
         }
@@ -442,6 +451,9 @@ export default function App() {
             hasApiKey={!!activeApiKey}
             width={isMobile ? undefined : chatWidth}
             tokenUsage={tokenUsage}
+            lastCost={lastCost}
+            usageTotals={usageTotals}
+            onResetUsage={() => setUsageTotals(resetUsage())}
             activeAnswerIndex={answerIndex}
             onOpenAnswer={handleOpenAnswer}
           />
