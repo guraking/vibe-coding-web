@@ -421,6 +421,8 @@
   font-size: 13px;
   line-height: 1.65;
 }
+/* Tailwind preflight 가 code 에 시스템 고정폭 글꼴을 직접 지정하므로, pre 의 --mono-font 를 이어받게 한다. */
+.answer-code code { font-family: inherit; }
 
 /* Mobile optimizations */
 @media (max-width: 767px) {
