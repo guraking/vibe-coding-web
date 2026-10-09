@@ -14,6 +14,7 @@ import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react
 import { PanelLeft } from 'lucide-react'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
 import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
+import type { GithubRepo } from './services/chatStore'
 import type { ChatSummary } from './services/chatStore'
 import { useEscapeKey } from './hooks/useEscapeKey'
 import Header from './components/Header'  // 상단 헤더 (로고, 설정, API 키)
@@ -98,6 +99,7 @@ export default function App() {
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({})
   const projectFilesRef = useRef<Record<string, string>>({})
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
+  const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
   const [lastCost, setLastCost] = useState(0)
@@ -199,6 +201,7 @@ export default function App() {
         messages,
         projectFiles,
         projectType,
+        githubRepo,
       }
       saveChat(chat)
         .then(() => {
@@ -209,7 +212,7 @@ export default function App() {
         .catch(() => setStorageError('대화를 저장하지 못했습니다 (저장 공간 부족 또는 시크릿 창)'))
     }, SAVE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [chatId, isLoading, messages, projectFiles, projectType])
+  }, [chatId, isLoading, messages, projectFiles, projectType, githubRepo])
 
   // 생성 중 응답은 이 페이지가 직접 받고 있어서 새로고침·탭 닫기 시 끊기고 저장되지 않는다. 떠나기 전에 브라우저 확인창을 띄운다.
   useEffect(() => {
@@ -486,12 +489,18 @@ export default function App() {
     unsavedRef.current = true
   }
 
+  const handleGithubRepoChange = (repo: GithubRepo) => {
+    setGithubRepo(repo)
+    unsavedRef.current = true
+  }
+
   // 화면을 빈 대화 상태로 되돌린다. 저장소는 건드리지 않는다.
   const resetConversation = () => {
     setMessages([])
     projectFilesRef.current = {}
     setProjectFiles({})
     setProjectType('html')
+    setGithubRepo(null)
     setAnswerIndex(null)
     setTokenUsage(null)
     setLastCost(0)
@@ -524,6 +533,7 @@ export default function App() {
       projectFilesRef.current = chat.projectFiles
       setProjectFiles(chat.projectFiles)
       setProjectType(chat.projectType)
+      setGithubRepo(chat.githubRepo ?? null)
       const lastAnswer = chat.messages.map((m) => m.role).lastIndexOf('assistant')
       setAnswerIndex(lastAnswer >= 0 ? lastAnswer : null)
       focusPanel(Object.keys(chat.projectFiles).length > 0 ? 'preview' : 'answer')
@@ -674,6 +684,8 @@ export default function App() {
             isLoading={isLoading}
             onImport={handleImportProject}
             onFilesChange={handleFilesChange}
+            githubRepo={githubRepo}
+            onGithubRepoChange={handleGithubRepoChange}
             answer={answerIndex !== null ? messages[answerIndex] ?? null : null}
             focus={panelFocus}
           />

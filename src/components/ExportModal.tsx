@@ -20,39 +20,10 @@ interface Props {
   onSuccess: (owner: string, repo: string, branch: string, token: string) => void
 }
 
-function loadPersistedRepo(): { owner: string; repo: string; branch: string } | null {
-  // Try both the primary key and the deploy-history to find a known repo
-  const KEYS = ['vibe_github_repo']
-  for (const key of KEYS) {
-    try {
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      const parsed = JSON.parse(raw) as { owner?: string; repo?: string; branch?: string }
-      if (parsed?.owner && parsed?.repo) {
-        return { owner: parsed.owner, repo: parsed.repo, branch: parsed.branch || 'main' }
-      }
-    } catch { /* skip */ }
-  }
-  // Fall back to the most recent deploy history entry
-  try {
-    const raw = localStorage.getItem('vibe_deploy_history')
-    if (raw) {
-      const history = JSON.parse(raw) as Array<{ owner?: string; repo?: string; branch?: string; deployedAt?: number }>
-      if (Array.isArray(history) && history.length > 0) {
-        const latest = history.sort((a, b) => (b.deployedAt ?? 0) - (a.deployedAt ?? 0))[0]
-        if (latest?.owner && latest?.repo) {
-          return { owner: latest.owner, repo: latest.repo, branch: latest.branch || 'main' }
-        }
-      }
-    }
-  } catch { /* skip */ }
-  return null
-}
-
 export default function ExportModal({ files, githubRepo: githubRepoProp, onClose, onSuccess }: Props) {
   useEscapeKey(onClose)
-  // Explicit prop takes priority, then fall back to any persisted value
-  const resolvedRepo = githubRepoProp ?? loadPersistedRepo()
+  // 현재 대화에 연결된 저장소만 쓴다. 없으면 새 저장소를 만든다.
+  const resolvedRepo = githubRepoProp ?? null
   const [useExisting, setUseExisting] = useState(!!resolvedRepo)
   const githubRepo = useExisting ? resolvedRepo : null
   const [token, setToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
@@ -80,13 +51,9 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
           githubRepo.branch,
           files,
         )
-        // Persist immediately so next open defaults to update mode
-        localStorage.setItem('vibe_github_repo', JSON.stringify({ owner, repo, branch }))
         onSuccess(owner, repo, branch, cleanToken)
       } else {
         const { owner, repo, branch } = await createRepoWithFiles(cleanToken, repoName.trim(), files)
-        // Persist immediately so next open defaults to update mode
-        localStorage.setItem('vibe_github_repo', JSON.stringify({ owner, repo, branch }))
         onSuccess(owner, repo, branch, cleanToken)
       }
     } catch (err) {

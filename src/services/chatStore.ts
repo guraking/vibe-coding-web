@@ -17,7 +17,11 @@ export interface StoredChat {
   messages: Message[]
   projectFiles: Record<string, string>
   projectType: 'html' | 'react' | 'vue'
+  // 이 대화가 import·export 로 연결한 저장소. 이 필드가 생기기 전에 저장된 대화에는 없다.
+  githubRepo?: GithubRepo | null
 }
+
+export type GithubRepo = { owner: string; repo: string; branch: string }
 
 export type ChatSummary = Pick<StoredChat, 'id' | 'title' | 'updatedAt'>
 

@@ -6,6 +6,7 @@ import ImportModal from './ImportModal'
 import AnswerView from './AnswerView'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
 import type { Message } from '../services/ai'
+import type { GithubRepo } from '../services/chatStore'
 
 /**
  * PreviewPanel 컴포넌트: 우측 코드/미리보기 패널
@@ -25,6 +26,9 @@ interface Props {
   isLoading: boolean
   onImport: (files: Record<string, string>, projectType: 'html' | 'react' | 'vue') => void
   onFilesChange: (files: Record<string, string>) => void
+  // 현재 대화에 연결된 저장소. 대화별로 App 이 저장하고, import·export 성공 시 onGithubRepoChange 로 바꾼다.
+  githubRepo: GithubRepo | null
+  onGithubRepoChange: (repo: GithubRepo) => void
   // 답변 탭에 표시할 메시지. null 이면 빈 안내를 보여준다.
   answer: Message | null
   // seq 가 바뀔 때마다 tab 으로 전환한다. 같은 탭을 다시 요청해도 반영되도록 seq 를 둔다.
@@ -33,25 +37,11 @@ interface Props {
 
 export type PanelTab = 'answer' | 'preview' | 'code'
 
-type GithubRepo = { owner: string; repo: string; branch: string }
 type DeploymentHistoryItem = { owner: string; repo: string; branch: string; url: string; deployedAt: number }
 
 type Tab = PanelTab
 
 const DEPLOY_HISTORY_KEY = 'vibe_deploy_history'
-const GITHUB_REPO_KEY = 'vibe_github_repo'
-
-function loadGithubRepo(): GithubRepo | null {
-  try {
-    const raw = localStorage.getItem(GITHUB_REPO_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as GithubRepo
-    if (!parsed?.owner || !parsed?.repo) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
 
 function loadDeployHistory(): DeploymentHistoryItem[] {
   try {
@@ -180,7 +170,7 @@ function PixelLoadingBar({
   )
 }
 
-export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange, answer, focus }: Props) {
+export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange, githubRepo, onGithubRepoChange, answer, focus }: Props) {
   const [tab, setTab] = useState<Tab>('preview')
   useEffect(() => {
     if (focus.seq > 0) setTab(focus.tab)
@@ -193,13 +183,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const isImportRef = useRef(false)
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [githubRepo, setGithubRepo] = useState<GithubRepo | null>(() => loadGithubRepo())
-
-  const setGithubRepoPersist = (repo: GithubRepo | null) => {
-    setGithubRepo(repo)
-    if (repo) localStorage.setItem(GITHUB_REPO_KEY, JSON.stringify(repo))
-    else localStorage.removeItem(GITHUB_REPO_KEY)
-  }
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployStatus, setDeployStatus] = useState('')
   const [deployError, setDeployError] = useState('')
@@ -374,7 +357,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   }
 
   const handleExportSuccess = async (owner: string, repo: string, branch: string, token: string) => {
-    setGithubRepoPersist({ owner, repo, branch })
+    onGithubRepoChange({ owner, repo, branch })
     setDeployUrl(null)
     setDeployError('')
     setDeployStep('idle')
@@ -444,7 +427,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const handleImportSuccess = async (importedFiles: Record<string, string>, importedType: 'html' | 'react' | 'vue', owner: string, repo: string, branch: string) => {
     isImportRef.current = true
     setShowImport(false)
-    setGithubRepoPersist({ owner, repo, branch })
+    onGithubRepoChange({ owner, repo, branch })
     setDeployUrl(null)
     setDeployError('')
     setDeployStep('idle')
