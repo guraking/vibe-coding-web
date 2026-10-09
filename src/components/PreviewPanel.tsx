@@ -632,7 +632,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           <button onClick={handleCommitPush}
             className="flex items-center gap-1.5 transition-all"
             style={githubRepo
-              ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', border: '1px solid var(--ok-bd)', cursor: 'pointer' }
+              ? { color: 'var(--accent)', background: 'var(--accent-bg)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', border: '1px solid var(--accent-bd)', cursor: 'pointer' }
               : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
             onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' } }}

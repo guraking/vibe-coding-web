@@ -35,17 +35,17 @@
 
 @layer base {
   :root {
-    /* 따뜻한 미색 계열. 텍스트·강조색은 --bg 위에서 4.5:1 이상을 유지한다. */
-    --bg:        #faf9f5;
+    /* 무채색 회색 계열. 텍스트·강조색은 --bg 위에서 4.5:1 이상을 유지한다. */
+    --bg:        #f7f7f8;
     --bg-panel:  #ffffff;
-    --bg-card:   #f5f4ed;
-    --bg-hover:  #f0eee6;
-    --border:    #e8e6dc;
-    --border-s:  #f0eee6;
+    --bg-card:   #f2f2f3;
+    --bg-hover:  #ececee;
+    --border:    #e4e4e7;
+    --border-s:  #efeff1;
 
-    --txt:       #141413;
-    --txt-2:     #3d3d3a;
-    --txt-3:     #6b6a63;
+    --txt:       #18181b;
+    --txt-2:     #3f3f46;
+    --txt-3:     #71717a;
 
     /* Claude 테라코타(#c96442)는 흰 배경 대비 3.9:1 이라 작은 글씨용으로 한 단계 어둡게 쓴다. */
     --accent:    #ae5630;
