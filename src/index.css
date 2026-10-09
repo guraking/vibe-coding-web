@@ -67,6 +67,16 @@
     --err-bg:    rgba(220,38,38,0.07);
     --err-bd:    rgba(220,38,38,0.2);
 
+    /* 코드 문법 강조(highlight.js 토큰). --bg·--bg-panel 위에서 4.5:1 이상. */
+    --syn-keyword: #cf222e;
+    --syn-string:  #0a3069;
+    --syn-number:  #0550ae;
+    --syn-comment: #6e7781;
+    --syn-title:   #8250df;
+    --syn-tag:     #116329;
+    --syn-attr:    #0550ae;
+    --syn-builtin: #953800;
+
     --ui-font:      'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --display-font: 'Noto Serif KR', Georgia, serif;
     --mono-font:    'JetBrains Mono', 'D2Coding', 'Fira Code', ui-monospace, monospace;
@@ -116,6 +126,15 @@
     --err:       #f87171;
     --err-bg:    rgba(248,113,113,0.1);
     --err-bd:    rgba(248,113,113,0.3);
+
+    --syn-keyword: #ff7b72;
+    --syn-string:  #a5d6ff;
+    --syn-number:  #79c0ff;
+    --syn-comment: #8b949e;
+    --syn-title:   #d2a8ff;
+    --syn-tag:     #7ee787;
+    --syn-attr:    #79c0ff;
+    --syn-builtin: #ffa657;
   }
 
   * { box-sizing: border-box; }
@@ -423,6 +442,28 @@
 }
 /* Tailwind preflight 가 code 에 시스템 고정폭 글꼴을 직접 지정하므로, pre 의 --mono-font 를 이어받게 한다. */
 .answer-code code { font-family: inherit; }
+
+/* 코드 탭 편집기: 색칠한 pre 와 투명 textarea 가 글자 단위로 겹치도록 글꼴·크기·줄높이·여백·공백 처리를 똑같이 맞춘다. */
+.code-editor-layer {
+  padding: 8px 12px;
+  border: 0;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: normal;
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* highlight.js 토큰 색. 답변 코드 블록(.answer-code)과 편집기(.code-highlight)에 쓴다. */
+:is(.answer-code, .code-highlight) :is(.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-type) { color: var(--syn-keyword); }
+:is(.answer-code, .code-highlight) :is(.hljs-string, .hljs-regexp, .hljs-template-tag) { color: var(--syn-string); }
+:is(.answer-code, .code-highlight) :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.language_) { color: var(--syn-number); }
+:is(.answer-code, .code-highlight) :is(.hljs-comment, .hljs-meta, .hljs-quote) { color: var(--syn-comment); font-style: italic; }
+:is(.answer-code, .code-highlight) :is(.hljs-title, .hljs-section, .hljs-selector-class, .hljs-selector-id) { color: var(--syn-title); }
+:is(.answer-code, .code-highlight) :is(.hljs-name, .hljs-tag) { color: var(--syn-tag); }
+:is(.answer-code, .code-highlight) :is(.hljs-attr, .hljs-attribute, .hljs-property, .hljs-selector-attr, .hljs-selector-pseudo) { color: var(--syn-attr); }
+:is(.answer-code, .code-highlight) :is(.hljs-built_in, .hljs-params, .hljs-variable, .hljs-template-variable) { color: var(--syn-builtin); }
 
 /* Mobile optimizations */
 @media (max-width: 767px) {

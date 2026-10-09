@@ -7,6 +7,7 @@ import AnswerView from './AnswerView'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
 import type { Message } from '../services/ai'
 import type { GithubRepo } from '../services/chatStore'
+import { highlightCode } from '../services/highlight'
 
 /**
  * PreviewPanel 컴포넌트: 우측 코드/미리보기 패널
@@ -304,6 +305,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const selectedContent = files[selectedFile] || ''
   const totalLines = Object.values(files).reduce((s, c) => s + c.split('\n').length, 0)
   const selectedLineCount = Math.max(1, selectedContent.split('\n').length)
+  const highlightedContent = useMemo(() => highlightCode(selectedContent, selectedFile), [selectedContent, selectedFile])
+  const highlightRef = useRef<HTMLPreElement>(null)
   const repoDeployHistory = useMemo(() => {
     if (!githubRepo) return []
     return deployHistory.filter((h) => h.owner === githubRepo.owner && h.repo === githubRepo.repo)
@@ -983,13 +986,13 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                       onClick={handleCommitPush}
                       className="flex items-center gap-1.5 transition-all"
                       style={{
-                        color: '#ffffff',
+                        color: 'var(--ok)',
                         fontFamily: 'var(--ui-font)',
                         fontSize: 12,
                         fontWeight: 600,
                         padding: '2px 10px',
-                        background: 'var(--ok)',
-                        border: '1px solid #0f766e',
+                        background: 'var(--ok-bg)',
+                        border: '1px solid var(--ok-bd)',
                         cursor: 'pointer',
                       }}
                       onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.08)' }}
@@ -1036,20 +1039,25 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                       ))}
                     </div>
                   </div>
-                  <textarea
-                    value={selectedContent}
-                    onChange={(e) => updateSelectedFileContent(e.target.value)}
-                    spellCheck={false}
-                    className="flex-1 w-full h-full resize-none outline-none"
-                    style={{
-                      background: 'var(--bg)',
-                      color: 'var(--txt-2)',
-                      fontFamily: 'var(--mono-font)',
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      padding: '8px 12px',
-                    }}
-                  />
+                  {/* 색칠한 pre 를 뒤에 깔고 글자를 투명하게 한 textarea 를 겹친다. 두 요소의 글꼴·줄높이·여백이 같아야 글자가 겹치고, 줄바꿈을 끄고(wrap=off) 스크롤을 맞춘다. */}
+                  <div className="relative flex-1 min-w-0 h-full" style={{ background: 'var(--bg)' }}>
+                    <pre ref={highlightRef} aria-hidden="true" className="code-editor-layer code-highlight"
+                      style={{ position: 'absolute', inset: 0, margin: 0, overflow: 'hidden', pointerEvents: 'none', color: 'var(--txt-2)' }}
+                      dangerouslySetInnerHTML={{ __html: highlightedContent + '\n' }} />
+                    <textarea
+                      value={selectedContent}
+                      onChange={(e) => updateSelectedFileContent(e.target.value)}
+                      onScroll={(e) => {
+                        if (!highlightRef.current) return
+                        highlightRef.current.scrollTop = e.currentTarget.scrollTop
+                        highlightRef.current.scrollLeft = e.currentTarget.scrollLeft
+                      }}
+                      spellCheck={false}
+                      wrap="off"
+                      className="code-editor-layer relative w-full h-full resize-none outline-none"
+                      style={{ background: 'transparent', color: 'transparent', caretColor: 'var(--txt)' }}
+                    />
+                  </div>
                 </div>
               </div>
             </>

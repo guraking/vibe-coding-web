@@ -4,6 +4,7 @@ import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, Copy, Sparkle } from 'lucide-react'
 import type { Message } from '../services/ai'
+import { highlightCode } from '../services/highlight'
 
 /**
  * AnswerView: 오른쪽 패널의 '답변' 탭
@@ -39,7 +40,7 @@ function CodeBlock({ code, label }: { code: string; label: string }) {
           <span>{copied ? '복사됨' : '복사'}</span>
         </button>
       </div>
-      <pre><code>{code}</code></pre>
+      <pre><code dangerouslySetInnerHTML={{ __html: highlightCode(code, label) }} /></pre>
     </div>
   )
 }
