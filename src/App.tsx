@@ -657,7 +657,7 @@ export default function App() {
               style={{
                 height: 44,
                 fontFamily: 'var(--ui-font)',
-                fontSize: 13,
+                fontSize: 'var(--fs-sm)',
                 background: 'transparent',
                 border: 'none',
                 borderBottom: mobileTab === tab ? '2px solid var(--accent)' : '2px solid transparent',

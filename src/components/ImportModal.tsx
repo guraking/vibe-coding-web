@@ -60,7 +60,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="import from github"
+        aria-label="GitHub 에서 가져오기"
         className="w-[420px] shadow-2xl flex flex-col gap-4"
         style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 24 }}
         onMouseDown={() => { backdropPressRef.current = false }}
@@ -69,8 +69,8 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
         <div className="flex items-center justify-between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--border-s)' }}>
           <div className="flex items-center gap-2">
             <FolderGit2 style={{ width: 14, height: 14, color: 'var(--accent)' }} />
-            <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 14, fontWeight: 600 }}>
-              import from github
+            <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
+              GitHub 에서 가져오기
             </span>
           </div>
           <button
@@ -87,8 +87,8 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
 
         {/* URL */}
         <div className="flex flex-col gap-1.5">
-          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
-            # github repository url
+          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
+            GitHub 저장소 주소
           </label>
           <input
             type="text"
@@ -104,20 +104,20 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
               color: 'var(--txt)',
               caretColor: 'var(--accent)',
               fontFamily: 'var(--ui-font)',
-              fontSize: 13,
+              fontSize: 'var(--fs-sm)',
             }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--accent-bd)')}
           />
-          <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+          <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
             브랜치 지정: .../tree/branch-name
           </p>
         </div>
 
         {/* Token (optional) */}
         <div className="flex flex-col gap-1.5">
-          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
-            # github token (비공개 저장소 또는 rate limit 방지용, 선택사항)
+          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
+            GitHub 토큰 (비공개 저장소나 요청 한도 초과 방지용, 선택)
           </label>
           <div className="flex items-center gap-2 px-3 py-2"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
@@ -128,7 +128,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
               onChange={e => setToken(e.target.value)}
               placeholder="ghp_xxxxxxxxxxxx (선택)"
               className="flex-1 bg-transparent outline-none"
-              style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+              style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
             />
           </div>
           <a
@@ -136,23 +136,23 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1"
-            style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 12 }}
+            style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
           >
-            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo + workflow scope
+            <ExternalLink style={{ width: 10, height: 10 }} /> repo · workflow 권한으로 토큰 만들기
           </a>
         </div>
 
         {/* Progress / Error */}
         {progress && status === 'loading' && (
           <div className="flex items-center gap-2 px-3 py-2"
-            style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)', color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+            style={{ background: 'var(--accent-bg)', border: '1px solid var(--accent-bd)', color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
             <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
             {progress}
           </div>
         )}
         {error && (
           <p className="px-3 py-2 whitespace-pre-wrap"
-            style={{ color: 'var(--err)', background: 'var(--err-bg)', border: '1px solid var(--err-bd)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+            style={{ color: 'var(--err)', background: 'var(--err-bg)', border: '1px solid var(--err-bd)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
             {error}
           </p>
         )}
@@ -162,7 +162,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
           onClick={handleImport}
           disabled={!url.trim() || status === 'loading'}
           className="flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', border: 'none', cursor: 'pointer' }}
         >
           {status === 'loading' ? (
             <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> 불러오는 중...</>

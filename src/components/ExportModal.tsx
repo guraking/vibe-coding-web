@@ -76,7 +76,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="export to github"
+        aria-label="GitHub 로 내보내기"
         className="w-96 shadow-2xl flex flex-col gap-4"
         style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 24 }}
         onMouseDown={() => { backdropPressRef.current = false }}
@@ -85,7 +85,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
         <div className="flex items-center justify-between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--border-s)' }}>
           <div className="flex items-center gap-2">
             <GitFork style={{ width: 14, height: 14, color: 'var(--accent)' }} />
-            <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 14, fontWeight: 600 }}>export to github</span>
+            <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>GitHub 로 내보내기</span>
           </div>
           <button
             onClick={onClose}
@@ -101,8 +101,8 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
 
         {/* Token */}
         <div className="flex flex-col gap-1.5">
-          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
-            # github personal access token
+          <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
+            GitHub 개인 액세스 토큰
           </label>
           <div className="flex items-center gap-2 px-3 py-2"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
@@ -113,7 +113,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
               onChange={e => setToken(e.target.value)}
               placeholder="ghp_xxxxxxxxxxxx"
               className="flex-1 bg-transparent outline-none"
-              style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+              style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
             />
           </div>
           <a
@@ -121,9 +121,9 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1"
-            style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 12 }}
+            style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
           >
-            <ExternalLink style={{ width: 10, height: 10 }} /> create token with repo + workflow scope
+            <ExternalLink style={{ width: 10, height: 10 }} /> repo · workflow 권한으로 토큰 만들기
           </a>
         </div>
 
@@ -131,10 +131,10 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
         {resolvedRepo ? (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}># target repository</label>
+              <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>대상 저장소</label>
               <button
                 onClick={() => setUseExisting(v => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
                 onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)' }}
                 onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)' }}
               >
@@ -144,11 +144,11 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
             {useExisting ? (
               <div
                 className="flex items-center gap-2 px-3 py-2"
-                style={{ background: 'var(--bg)', border: '1px solid var(--ok-bd)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+                style={{ background: 'var(--bg)', border: '1px solid var(--ok-bd)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
               >
                 <GitFork style={{ width: 11, height: 11, color: 'var(--ok)', flexShrink: 0 }} />
                 <span>{resolvedRepo.owner}/{resolvedRepo.repo}</span>
-                <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>({resolvedRepo.branch})</span>
+                <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)' }}>({resolvedRepo.branch})</span>
               </div>
             ) : (
               <input
@@ -156,7 +156,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
                 value={repoName}
                 onChange={e => setRepoName(e.target.value.replace(/[^a-zA-Z0-9._-]/g, '-'))}
                 className="px-3 py-2 outline-none"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-bd)')}
                 onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
@@ -164,13 +164,13 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}># repository name</label>
+            <label style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>저장소 이름</label>
             <input
               type="text"
               value={repoName}
               onChange={e => setRepoName(e.target.value.replace(/[^a-zA-Z0-9._-]/g, '-'))}
               className="px-3 py-2 outline-none"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
               onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-bd)')}
               onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
             />
@@ -178,12 +178,12 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
         )}
 
         {/* File count */}
-        <div className="px-3 py-2" style={{ background: 'var(--bg)', color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+        <div className="px-3 py-2" style={{ background: 'var(--bg)', color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
           {Object.keys(files).length} files: {Object.keys(files).join(', ')}
         </div>
 
         {error && (
-          <p className="px-3 py-2" style={{ color: 'var(--err)', background: 'var(--err-bg)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+          <p className="px-3 py-2" style={{ color: 'var(--err)', background: 'var(--err-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
             {error}
           </p>
         )}
@@ -192,12 +192,12 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
           onClick={handleExport}
           disabled={!canExport || status === 'loading'}
           className="flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', border: 'none', cursor: 'pointer' }}
         >
           {status === 'loading' ? (
-            <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> {githubRepo ? 'updating repository...' : 'creating repository...'}</>
+            <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> {githubRepo ? '저장소 업데이트 중...' : '저장소 만드는 중...'}</>
           ) : (
-            <><GitFork style={{ width: 14, height: 14 }} /> {githubRepo ? `push to ${resolvedRepo?.owner}/${resolvedRepo?.repo}` : 'create repo & export'}</>
+            <><GitFork style={{ width: 14, height: 14 }} /> {githubRepo ? `${resolvedRepo?.owner}/${resolvedRepo?.repo} 에 푸시` : '저장소 만들고 내보내기'}</>
           )}
         </button>
       </div>

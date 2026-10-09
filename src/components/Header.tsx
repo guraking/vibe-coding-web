@@ -124,7 +124,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               style={{ fontSize: 'var(--fs-sm)', color: 'var(--txt-2)', padding: '0 8px' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--txt)')}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--txt-2)')}>
-              Docs
+              문서
             </a>
           )}
         </div>
@@ -134,7 +134,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: 'rgba(20,20,19,0.4)', backdropFilter: 'blur(4px)' }}
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div role="dialog" aria-modal="true" aria-label="AI API Key Settings"
+          <div role="dialog" aria-modal="true" aria-label="API 키 설정"
             className="w-full max-w-md shadow-2xl overflow-hidden"
             style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
             {/* Modal title bar */}
@@ -142,8 +142,8 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               <div className="flex items-center gap-2">
                 <KeyRound className="w-3.5 h-3.5" style={{ color: 'var(--txt-3)' }} />
-                <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 14, fontWeight: 600 }}>
-                  AI API Key Settings
+                <span style={{ color: 'var(--txt)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
+                  API 키 설정
                 </span>
               </div>
               <button onClick={() => setShowModal(false)}
@@ -157,24 +157,24 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 13, marginBottom: 8 }}>
-                  # 방법 1 (권장) — .env.local 파일에 저장
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', marginBottom: 8 }}>
+                  방법 1 (권장) — .env.local 파일에 저장
                 </p>
-                <div className="px-3 py-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ok)', fontFamily: 'var(--ui-font)', fontSize: 14 }}>
+                <div className="px-3 py-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ok)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-md)' }}>
                   {ENV_VAR}=sk-ant-...
                 </div>
               </div>
               <div>
-                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 13, marginBottom: 8 }}>
-                  # 방법 2 — 직접 입력 (브라우저에 저장)
+                <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', marginBottom: 8 }}>
+                  방법 2 — 직접 입력 (브라우저에 저장)
                 </p>
                 <div>
                   <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
-                    <span style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 12 }}>
+                    <span style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
                       Anthropic
                     </span>
                     {isEnvKey && (
-                      <span style={{ color: 'var(--ok)', fontFamily: 'var(--ui-font)', fontSize: 11 }}>
+                      <span style={{ color: 'var(--ok)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-xs)' }}>
                         .env.local 로드됨
                       </span>
                     )}
@@ -191,7 +191,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                       color: 'var(--txt)',
                       caretColor: 'var(--accent)',
                       fontFamily: 'var(--ui-font)',
-                      fontSize: 14,
+                      fontSize: 'var(--fs-md)',
                     }}
                   />
                 </div>
@@ -199,17 +199,17 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               <div className="flex gap-2 justify-end pt-1">
                 <button onClick={() => setShowModal(false)}
                   className="px-4 py-2 transition-colors"
-                  style={{ background: 'var(--bg-card)', color: 'var(--txt-2)', border: '1px solid var(--border)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+                  style={{ background: 'var(--bg-card)', color: 'var(--txt-2)', border: '1px solid var(--border)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-card)')}>
-                  cancel
+                  취소
                 </button>
                 <button onClick={save}
                   className="px-4 py-2 font-medium transition-colors"
-                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-h)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}>
-                  save
+                  저장
                 </button>
               </div>
             </div>
