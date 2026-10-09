@@ -1,6 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText } from 'lucide-react'
-import type { Message, TokenUsage } from '../services/ai'
+import { ArrowUp, RotateCcw, AlertCircle, Sparkle, FileText, ImagePlus, X } from 'lucide-react'
+import type { Message, MessageImage, TokenUsage } from '../services/ai'
+import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
 import { formatUsd } from '../services/usage'
 import type { UsageTotals } from '../services/usage'
 
@@ -19,7 +20,7 @@ const BILLING_URL = 'https://platform.claude.com/settings/billing'
  */
 interface Props {
   messages: Message[]
-  onSend: (prompt: string) => void
+  onSend: (prompt: string, images: MessageImage[]) => void
   isLoading: boolean
   hasApiKey: boolean
   width?: number
@@ -74,13 +75,47 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  // 보내기 전 이미지(🖼 버튼·붙여넣기·끌어다 놓기로 추가)
+  const [images, setImages] = useState<MessageImage[]>([])
+  const [imageError, setImageError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
+  // 남은 칸만큼만 받고, 형식이 맞지 않거나 읽기에 실패한 파일은 메시지로 알린다.
+  const addImageFiles = async (files: File[]) => {
+    if (files.length === 0) return
+    setImageError('')
+    const room = MAX_IMAGES_PER_MESSAGE - images.length
+    if (files.length > room) setImageError(`이미지는 메시지당 최대 ${MAX_IMAGES_PER_MESSAGE}장까지 넣을 수 있어요`)
+    const added: MessageImage[] = []
+    for (const file of files.slice(0, Math.max(0, room))) {
+      try {
+        added.push(await readImage(file))
+      } catch (err) {
+        setImageError(err instanceof Error ? err.message : '이미지를 읽지 못했어요')
+      }
+    }
+    if (added.length > 0) setImages((prev) => [...prev, ...added].slice(0, MAX_IMAGES_PER_MESSAGE))
+  }
+
+  // 클립보드에 이미지가 있을 때만 가로채고, 글자 붙여넣기는 그대로 둔다.
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(e.clipboardData.files)
+    if (files.length === 0) return
+    e.preventDefault()
+    void addImageFiles(files)
+  }
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    void addImageFiles(Array.from(e.dataTransfer.files))
+  }
+
   const submit = () => {
     const t = input.trim()
-    if (!t || isLoading || !hasApiKey) return
-    onSend(t); setInput('')
+    if ((!t && images.length === 0) || isLoading || !hasApiKey) return
+    onSend(t, images); setInput(''); setImages([]); setImageError('')
     if (taRef.current) taRef.current.style.height = 'auto'
   }
 
@@ -94,7 +129,7 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
     e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px'
   }
 
-  const canSend = !!input.trim() && !isLoading && hasApiKey
+  const canSend = (!!input.trim() || images.length > 0) && !isLoading && hasApiKey
 
   return (
     <div className="flex flex-col flex-shrink-0"
@@ -166,7 +201,14 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             {messages.map((msg, i) => (
               msg.role === 'user' ? (
                 /* 사용자 메시지: 오른쪽 말풍선 */
-                <div key={i} className="flex justify-end">
+                <div key={i} className="flex flex-col items-end gap-1.5">
+                  {msg.images && msg.images.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-1.5" style={{ maxWidth: '85%' }}>
+                      {msg.images.map((img, k) => (
+                        <img key={k} src={imageSrc(img)} alt={`첨부 이미지 ${k + 1}`} className="chat-image" />
+                      ))}
+                    </div>
+                  )}
                   <p style={{
                     maxWidth: '85%',
                     padding: '8px 14px',
@@ -236,15 +278,33 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             API 키가 없습니다. 상단의 API 키 버튼에서 입력해 주세요.
           </div>
         )}
+        {imageError && (
+          <p role="alert" style={{ color: 'var(--err)', fontSize: 'var(--fs-xs)', margin: '0 4px 6px' }}>{imageError}</p>
+        )}
         <div className="transition-all"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
           style={{
             background: 'var(--bg-panel)',
-            border: `1px solid ${input ? 'var(--accent-bd)' : 'var(--border)'}`,
+            border: `1px solid ${input || images.length > 0 ? 'var(--accent-bd)' : 'var(--border)'}`,
             borderRadius: 'var(--radius-lg)',
             boxShadow: '0 1px 3px rgba(20,20,19,0.06)',
           }}>
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2" style={{ padding: '10px 12px 0' }}>
+              {images.map((img, k) => (
+                <div key={k} className="relative">
+                  <img src={imageSrc(img)} alt={`보낼 이미지 ${k + 1}`} className="chat-image-draft" />
+                  <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== k))}
+                    aria-label={`이미지 ${k + 1} 빼기`} className="chat-image-remove">
+                    <X style={{ width: 12, height: 12 }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <textarea ref={taRef} value={input}
-            onChange={onInput} onKeyDown={onKey}
+            onChange={onInput} onKeyDown={onKey} onPaste={onPaste}
             aria-label="메시지 입력"
             placeholder={hasApiKey ? '만들고 싶은 것을 설명해 주세요' : 'API 키를 먼저 설정해 주세요'}
             disabled={!hasApiKey || isLoading} rows={2}
@@ -263,8 +323,19 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
             }}
           />
           <div className="flex items-center justify-between px-3 pb-2.5">
-            <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
-              Shift+Enter 줄바꿈
+            <span className="flex items-center gap-2">
+              <button onClick={() => fileInputRef.current?.click()}
+                disabled={!hasApiKey || isLoading || images.length >= MAX_IMAGES_PER_MESSAGE}
+                aria-label="이미지 추가" title="이미지 추가 (붙여넣기·끌어다 놓기도 됩니다)"
+                className="icon-btn" style={{ width: 28, height: 28 }}>
+                <ImagePlus style={{ width: 16, height: 16 }} />
+              </button>
+              <input ref={fileInputRef} type="file" hidden multiple
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                onChange={(e) => { void addImageFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
+              <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
+                Shift+Enter 줄바꿈
+              </span>
             </span>
             <button onClick={submit} disabled={!canSend}
               aria-label={isLoading ? '생성 중' : '전송'}

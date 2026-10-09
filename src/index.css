@@ -200,6 +200,36 @@
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--txt); }
 
+.icon-btn:disabled { opacity: 0.4; cursor: default; background: transparent; }
+
+/* 채팅 이미지: 보낸 말풍선 썸네일, 보내기 전 미리보기 */
+.chat-image {
+  max-width: 160px;
+  max-height: 160px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+.chat-image-draft {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+.chat-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 50%;
+  background: var(--txt);
+  color: var(--bg-panel);
+  cursor: pointer;
+}
+
 /* 대화 목록 (Sidebar) */
 .sidebar {
   width: 240px;

@@ -1,10 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk'
 
+// 사용자가 메시지에 넣은 이미지. data 는 data URL 접두어를 뺀 base64 본문이다.
+export interface MessageImage {
+  mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+  data: string
+}
+
 export interface Message {
   role: 'user' | 'assistant'
   content: string
   files?: Record<string, string>
   projectType?: 'html' | 'react' | 'vue'
+  images?: MessageImage[]
 }
 
 export interface TokenUsage {
@@ -211,7 +218,20 @@ export async function* streamCode(
     // 멀티 파일 프로젝트 전체를 한 응답에 담으므로 넉넉히 잡는다. 스트리밍이라 HTTP 타임아웃 대상이 아니다.
     max_tokens: 64000,
     system: SYSTEM_PROMPT + currentContext,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    // 이미지가 있는 메시지는 이미지 블록들 뒤에 텍스트를 둔다(이미지를 먼저 두는 것이 권장 순서).
+    // 이전 턴의 이미지도 매번 다시 보내야 Claude 가 그 이미지를 참조할 수 있다.
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.images?.length
+        ? [
+            ...m.images.map((img) => ({
+              type: 'image' as const,
+              source: { type: 'base64' as const, media_type: img.mediaType, data: img.data },
+            })),
+            { type: 'text' as const, text: m.content },
+          ]
+        : m.content,
+    })),
     ...(useFallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
   })
 

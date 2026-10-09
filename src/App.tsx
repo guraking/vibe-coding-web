@@ -21,7 +21,7 @@ import PreviewPanel from './components/PreviewPanel'  // 우측 코드 미리보
 import type { PanelTab } from './components/PreviewPanel'
 // AI 서비스 함수들 (스트리밍, 파싱, 모델 정보)
 import { streamCode, parseVibe, MODELS } from './services/ai'
-import type { Message, TokenUsage } from './services/ai'
+import type { Message, MessageImage, TokenUsage } from './services/ai'
 import { addUsage, estimateCost, loadUsage, resetUsage } from './services/usage'
 
 /**
@@ -71,6 +71,9 @@ function fingerprintFiles(files: Record<string, string>): string {
  * 과도한 리렌더링 방지를 위한 성능 최적화
  */
 const REALTIME_PATCH_THROTTLE_MS = 150
+
+// 이미지만 보내고 글을 비웠을 때 대신 보내는 요청
+const IMAGE_ONLY_PROMPT = '이 이미지를 설명해 주세요'
 
 // 파일 편집처럼 연속으로 바뀌는 변경을 한 번에 저장하기 위한 대기 시간
 const SAVE_DELAY_MS = 500
@@ -302,9 +305,14 @@ export default function App() {
    * 8. 에러 처리
    *    - 에러 메시지를 채팅에 표시 (429·5xx 는 SDK 가 기본 2회 재시도한 뒤 도달)
    */
-  const handleSend = async (prompt: string) => {
+  const handleSend = async (prompt: string, images: MessageImage[] = []) => {
     if (!activeApiKey || isLoading) return
-    const userMsg: Message = { role: 'user', content: prompt }
+    // 이미지만 보내고 글을 비우면 기본 요청을 넣는다. API 는 빈 텍스트 블록을 받지 않는다.
+    const userMsg: Message = {
+      role: 'user',
+      content: prompt || IMAGE_ONLY_PROMPT,
+      ...(images.length > 0 ? { images } : {}),
+    }
     const history = [...messages, userMsg]
     setMessages(history)
     setIsLoading(true)
