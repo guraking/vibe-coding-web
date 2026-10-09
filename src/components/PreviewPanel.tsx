@@ -547,17 +547,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           </div>
         )}
 
-        {/* GitHub import button */}
-        <button onClick={() => setShowImport(true)}
-          className="flex items-center gap-1.5 transition-all"
-          style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
-          title="Import from GitHub">
-          <FolderGit2 style={{ width: 12, height: 12 }} />
-          <span>import</span>
-        </button>
-
         {/* 생성된 파일 전체를 폴더 구조 그대로 ZIP 으로 내려받는다. */}
         {hasFiles && (
           <button onClick={downloadZip}
@@ -570,6 +559,17 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
             <span>download</span>
           </button>
         )}
+
+        {/* GitHub import button */}
+        <button onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 transition-all"
+          style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
+          title="Import from GitHub">
+          <FolderGit2 style={{ width: 12, height: 12 }} />
+          <span>import</span>
+        </button>
 
         {/* GitHub export button */}
         {hasFiles && (
