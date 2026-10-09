@@ -225,7 +225,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
           onClick={handleExport}
           disabled={!canExport || status === 'loading'}
           className="flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#fff', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
         >
           {status === 'loading' ? (
             <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> {githubRepo ? 'updating repository...' : 'creating repository...'}</>

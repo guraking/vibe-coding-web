@@ -162,7 +162,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
           onClick={handleImport}
           disabled={!url.trim() || status === 'loading'}
           className="flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#fff', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)', height: 36, fontFamily: 'var(--ui-font)', fontSize: 13, border: 'none', cursor: 'pointer' }}
         >
           {status === 'loading' ? (
             <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> 불러오는 중...</>

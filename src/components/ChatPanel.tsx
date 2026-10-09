@@ -30,6 +30,8 @@ interface Props {
   onResetUsage: () => void
   // Claude 답변 본문은 오른쪽 패널에 표시하고, 여기서는 카드로만 보여준다.
   activeAnswerIndex: number | null
+  // 새 대화 시작. 페이지를 새로고침하지 않고 화면 상태만 비운다.
+  onNewChat: () => void
   onOpenAnswer: (index: number) => void
 }
 
@@ -68,7 +70,7 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer }: Props) {
+export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onNewChat }: Props) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -109,7 +111,7 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
         style={{ height: 44, borderBottom: '1px solid var(--border-s)' }}>
         <span style={{ color: 'var(--txt)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>대화</span>
         {messages.length > 0 && (
-          <button onClick={() => window.location.reload()}
+          <button onClick={onNewChat} disabled={isLoading}
             className="flex items-center gap-1.5 transition-colors"
             style={{ color: 'var(--txt-2)', fontSize: 'var(--fs-sm)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
@@ -272,7 +274,7 @@ export default function ChatPanel({ messages, onSend, isLoading, hasApiKey, widt
                 height: 32,
                 borderRadius: '50%',
                 background: canSend ? 'var(--accent)' : 'var(--bg-hover)',
-                color: canSend ? 'white' : 'var(--txt-3)',
+                color: canSend ? 'var(--on-accent)' : 'var(--txt-3)',
                 border: 'none',
                 cursor: canSend ? 'pointer' : 'default',
               }}

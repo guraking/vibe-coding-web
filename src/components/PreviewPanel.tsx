@@ -741,7 +741,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                     }
                   }}
                   className="flex items-center gap-1.5 transition-all"
-                  style={{ color: '#fff', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '6px 12px', background: 'var(--accent)', border: 'none', cursor: 'pointer' }}
+                  style={{ color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 12, padding: '6px 12px', background: 'var(--accent)', border: 'none', cursor: 'pointer' }}
                 >
                   다시 배포
                 </button>
@@ -825,7 +825,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                 <button
                   onClick={openPreviewFromDeploy}
                   className="flex items-center gap-2 transition-colors"
-                  style={{ background: 'var(--accent)', color: '#fff', fontFamily: 'var(--ui-font)', fontSize: 13, padding: '8px 20px', border: 'none', cursor: 'pointer' }}
+                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 13, padding: '8px 20px', border: 'none', cursor: 'pointer' }}
                 >
                   <Eye style={{ width: 13, height: 13 }} /> 미리보기 열기
                 </button>
@@ -868,7 +868,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
               <button
                 onClick={() => setShowExport(true)}
                 className="flex items-center gap-2 transition-colors"
-                style={{ background: 'var(--accent)', color: '#fff', fontFamily: 'var(--ui-font)', fontSize: 13, padding: '8px 20px', border: 'none', cursor: 'pointer' }}>
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 13, padding: '8px 20px', border: 'none', cursor: 'pointer' }}>
                 <GitFork style={{ width: 14, height: 14 }} /> push to github & preview
               </button>
               <div className="flex flex-wrap gap-1.5 justify-center" style={{ maxWidth: 280 }}>
@@ -991,7 +991,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                         disabled={deployStep === 'deploying'}
                         className="flex items-center gap-1.5 transition-all disabled:opacity-50"
                         style={{
-                          color: '#ffffff',
+                          color: 'var(--on-accent)',
                           fontFamily: 'var(--ui-font)',
                           fontSize: 12,
                           fontWeight: 600,

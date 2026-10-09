@@ -10,7 +10,11 @@
  * - 드래그 가능한 패널 리사이저
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
+import Sidebar from './components/Sidebar'  // 좌측 대화 목록
+import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
+import type { ChatSummary } from './services/chatStore'
+import { useEscapeKey } from './hooks/useEscapeKey'
 import Header from './components/Header'  // 상단 헤더 (로고, 설정, API 키)
 import ChatPanel from './components/ChatPanel'  // 좌측 채팅 패널
 import PreviewPanel from './components/PreviewPanel'  // 우측 코드 미리보기 패널
@@ -67,6 +71,9 @@ function fingerprintFiles(files: Record<string, string>): string {
  * 과도한 리렌더링 방지를 위한 성능 최적화
  */
 const REALTIME_PATCH_THROTTLE_MS = 150
+
+// 파일 편집처럼 연속으로 바뀌는 변경을 한 번에 저장하기 위한 대기 시간
+const SAVE_DELAY_MS = 500
 
 // index.css 의 모바일 미디어 쿼리(max-width: 767px)와 같은 경계를 쓴다.
 const MOBILE_QUERY = '(max-width: 767px)'
@@ -138,6 +145,67 @@ export default function App() {
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
+
+  // 테마: 저장된 선택이 있으면 그것을, 없으면 OS 설정을 따른다. <html data-theme> 으로 index.css 토큰이 바뀐다.
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('vibe_theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  // 첫 화면이 잘못된 테마로 깜빡이지 않도록 그리기 전에 적용한다.
+  useLayoutEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('vibe_theme', next)
+  }
+
+  // 대화 목록: 데스크톱은 펼친 상태가 기본이고 접은 상태를 기억한다. 모바일은 닫힌 서랍으로 시작한다.
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    !window.matchMedia(MOBILE_QUERY).matches && localStorage.getItem('vibe_sidebar') !== 'closed')
+  const toggleSidebar = () => {
+    if (!isMobile) localStorage.setItem('vibe_sidebar', sidebarOpen ? 'closed' : 'open')
+    setSidebarOpen(!sidebarOpen)
+  }
+  useEscapeKey(() => setSidebarOpen(false), isMobile && sidebarOpen)
+
+  // 저장된 대화. chatId 가 null 이면 아직 저장 전인 새 대화다.
+  const [chats, setChats] = useState<ChatSummary[]>([])
+  const [chatId, setChatId] = useState<string | null>(null)
+  const chatCreatedAtRef = useRef(0)
+  // 사용자가 보낸 요청이나 파일 수정으로 바뀐 내용이 있을 때만 저장한다. 대화를 불러온 직후에는 저장하지 않는다.
+  const unsavedRef = useRef(false)
+  const [storageError, setStorageError] = useState('')
+  // 대화를 바꿀 때 PreviewPanel 을 새로 마운트해 배포 상태 등 내부 상태를 비운다(예전 새로고침과 같은 효과).
+  const [sessionKey, setSessionKey] = useState(0)
+
+  useEffect(() => {
+    listChats().then(setChats).catch(() => setStorageError('대화 목록을 불러오지 못했습니다'))
+  }, [])
+
+  // 응답이 끝났거나 코드 탭에서 파일을 고친 뒤 SAVE_DELAY_MS 동안 변화가 없으면 저장한다. 생성 중에는 저장하지 않는다.
+  useEffect(() => {
+    if (!chatId || isLoading || messages.length === 0 || !unsavedRef.current) return
+    const timer = setTimeout(() => {
+      const chat = {
+        id: chatId,
+        title: chatTitle(messages),
+        createdAt: chatCreatedAtRef.current,
+        updatedAt: Date.now(),
+        messages,
+        projectFiles,
+        projectType,
+      }
+      saveChat(chat)
+        .then(() => {
+          unsavedRef.current = false
+          setStorageError('')
+          setChats((prev) => [{ id: chat.id, title: chat.title, updatedAt: chat.updatedAt }, ...prev.filter((c) => c.id !== chat.id)])
+        })
+        .catch(() => setStorageError('대화를 저장하지 못했습니다 (저장 공간 부족 또는 시크릿 창)'))
+    }, SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [chatId, isLoading, messages, projectFiles, projectType])
 
   /**
    * 드래그 시작 핸들러
@@ -251,6 +319,12 @@ export default function App() {
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
     setAnswerIndex(history.length)
+    // 새 대화의 첫 요청이면 이때 저장용 id 를 만든다. 응답이 끝나면 저장 effect 가 저장한다.
+    if (!chatId) {
+      setChatId(crypto.randomUUID())
+      chatCreatedAtRef.current = Date.now()
+    }
+    unsavedRef.current = true
     let panelFocused = false
     try {
       for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage)) {
@@ -392,6 +466,68 @@ export default function App() {
     projectFilesRef.current = importedFiles
     setProjectFiles(importedFiles)
     setProjectType(importedType)
+    unsavedRef.current = true
+  }
+
+  // 화면을 빈 대화 상태로 되돌린다. 저장소는 건드리지 않는다.
+  const resetConversation = () => {
+    setMessages([])
+    projectFilesRef.current = {}
+    setProjectFiles({})
+    setProjectType('html')
+    setAnswerIndex(null)
+    setTokenUsage(null)
+    setLastCost(0)
+    setSessionKey((k) => k + 1)
+    unsavedRef.current = false
+  }
+
+  // 생성 중에는 전환하지 않는다. 진행 중인 응답이 다른 대화에 섞이지 않게 하기 위함이다.
+  const handleNewChat = () => {
+    if (isLoading) return
+    resetConversation()
+    setChatId(null)
+    setMobileTab('chat')
+    if (isMobile) setSidebarOpen(false)
+  }
+
+  const handleSelectChat = async (id: string) => {
+    if (isLoading || id === chatId) return
+    try {
+      const chat = await loadChat(id)
+      if (!chat) {
+        setChats((prev) => prev.filter((c) => c.id !== id))
+        setStorageError('대화를 찾을 수 없습니다')
+        return
+      }
+      resetConversation()
+      setChatId(chat.id)
+      chatCreatedAtRef.current = chat.createdAt
+      setMessages(chat.messages)
+      projectFilesRef.current = chat.projectFiles
+      setProjectFiles(chat.projectFiles)
+      setProjectType(chat.projectType)
+      const lastAnswer = chat.messages.map((m) => m.role).lastIndexOf('assistant')
+      setAnswerIndex(lastAnswer >= 0 ? lastAnswer : null)
+      focusPanel(Object.keys(chat.projectFiles).length > 0 ? 'preview' : 'answer')
+      setMobileTab('chat')
+      if (isMobile) setSidebarOpen(false)
+    } catch {
+      setStorageError('대화를 불러오지 못했습니다')
+    }
+  }
+
+  const handleDeleteChat = async (id: string) => {
+    if (isLoading) return
+    const title = chats.find((c) => c.id === id)?.title ?? '이 대화'
+    if (!window.confirm(`'${title}' 대화를 삭제할까요? 되돌릴 수 없습니다.`)) return
+    try {
+      await deleteChat(id)
+      setChats((prev) => prev.filter((c) => c.id !== id))
+      if (id === chatId) handleNewChat()
+    } catch {
+      setStorageError('대화를 삭제하지 못했습니다')
+    }
   }
 
   // 대화의 답변 카드를 누르면 그 답변을 패널에 연다. 모바일은 패널 탭으로 넘어간다.
@@ -404,7 +540,20 @@ export default function App() {
   const handleFilesChange = (nextFiles: Record<string, string>) => {
     projectFilesRef.current = nextFiles
     setProjectFiles(nextFiles)
+    unsavedRef.current = true
   }
+
+  const sidebar = (
+    <Sidebar
+      chats={chats}
+      activeId={chatId}
+      busy={isLoading}
+      error={storageError}
+      onSelect={handleSelectChat}
+      onNew={handleNewChat}
+      onDelete={handleDeleteChat}
+    />
+  )
 
   return (
     <div
@@ -420,7 +569,18 @@ export default function App() {
         onModelChange={handleModelChange}
         isEnvKey={Boolean(envKey)}
         isMobile={isMobile}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={toggleSidebar}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
+      {/* 모바일: 대화 목록을 화면 왼쪽 서랍으로 띄운다. 바깥을 누르거나 Esc 로 닫는다. */}
+      {isMobile && sidebarOpen && (
+        <div className="fixed inset-0 z-40 flex" style={{ background: 'rgba(20,20,19,0.4)' }}
+          onClick={(e) => e.target === e.currentTarget && setSidebarOpen(false)}>
+          <div className="h-full" style={{ boxShadow: '4px 0 16px rgba(0,0,0,0.2)' }}>{sidebar}</div>
+        </div>
+      )}
       {isMobile && (
         <div role="tablist" className="flex flex-shrink-0" style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
           {(['chat', 'preview'] as const).map((tab) => (
@@ -442,6 +602,7 @@ export default function App() {
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">
+        {!isMobile && sidebarOpen && <div className="flex-shrink-0">{sidebar}</div>}
         {/* 모바일에서도 두 패널을 모두 마운트해 둔다. 탭 전환으로 입력 중인 내용·배포 상태가 사라지지 않게 하기 위함이다. */}
         <div className={`flex min-w-0 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'chat' ? 'hidden' : ''}`}>
           <ChatPanel
@@ -456,6 +617,7 @@ export default function App() {
             onResetUsage={() => setUsageTotals(resetUsage())}
             activeAnswerIndex={answerIndex}
             onOpenAnswer={handleOpenAnswer}
+            onNewChat={handleNewChat}
           />
         </div>
         {/* Drag handle */}
@@ -481,6 +643,7 @@ export default function App() {
         {/* Code preview panel */}
         <div className={`flex flex-1 min-w-0 ${isMobile && mobileTab !== 'preview' ? 'hidden' : ''}`}>
           <PreviewPanel
+            key={sessionKey}
             files={projectFiles}
             projectType={projectType}
             isLoading={isLoading}

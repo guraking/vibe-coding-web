@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { ChevronDown, KeyRound, X } from 'lucide-react'
+import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun } from 'lucide-react'
 import logo from '../logo.png'
 import { MODELS } from '../services/ai'
 import { useEscapeKey } from '../hooks/useEscapeKey'
@@ -11,6 +11,10 @@ interface Props {
   onModelChange: (model: string) => void
   isEnvKey: boolean
   isMobile?: boolean
+  sidebarOpen: boolean
+  onToggleSidebar: () => void
+  theme: 'light' | 'dark'
+  onToggleTheme: () => void
 }
 
 const ENV_VAR = 'VITE_ANTHROPIC_API_KEY'
@@ -23,7 +27,7 @@ const DOCS_URL = 'https://platform.claude.com/docs'
  * - API 키 설정 모달
  * - 모바일/데스크톱 반응형 레이아웃
  */
-export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile }: Props) {
+export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile, sidebarOpen, onToggleSidebar, theme, onToggleTheme }: Props) {
   const [showModal, setShowModal] = useState(false)  // API 키 설정 모달 표시 여부
   const [draft, setDraft] = useState('')  // 임시 입력 값 (저장 전)
   useEscapeKey(() => setShowModal(false), showModal)
@@ -47,6 +51,11 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
       {/* Top bar: 데스크톱·모바일 공통 48px 한 줄. 모바일에서는 부제·Docs 를 숨긴다. */}
       <header className="flex items-center justify-between flex-shrink-0 select-none gap-3"
         style={{ height: 48, padding: '0 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-2">
+        <button onClick={onToggleSidebar} className="icon-btn"
+          aria-label={sidebarOpen ? '대화 목록 접기' : '대화 목록 펼치기'} aria-expanded={sidebarOpen}>
+          <PanelLeft style={{ width: 18, height: 18 }} />
+        </button>
         <button onClick={reloadPage} className="flex items-center gap-2" aria-label="새 세션 시작"
           style={{ background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer', padding: 0 }}>
           <img src={logo} alt="" width={30} height={30} />
@@ -55,6 +64,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)', marginLeft: 4 }}>with Claude</span>
           )}
         </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="relative flex items-center">
@@ -98,6 +108,12 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             {/* 상태는 색 점과 문구를 함께 써서 색만으로 전달하지 않는다. */}
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: hasActiveKey ? 'var(--ok)' : 'var(--err)' }} />
             <span>{hasActiveKey ? 'API 키' : 'API 키 필요'}</span>
+          </button>
+
+          <button onClick={onToggleTheme} className="icon-btn"
+            aria-label={theme === 'dark' ? '라이트 테마로 전환' : '먹 테마로 전환'}
+            title={theme === 'dark' ? '라이트 테마' : '먹 테마'}>
+            {theme === 'dark' ? <Sun style={{ width: 17, height: 17 }} /> : <Moon style={{ width: 17, height: 17 }} />}
           </button>
 
           {!isMobile && (
@@ -188,7 +204,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                 </button>
                 <button onClick={save}
                   className="px-4 py-2 font-medium transition-colors"
-                  style={{ background: 'var(--accent)', color: 'white', fontFamily: 'var(--ui-font)', fontSize: 13 }}
+                  style={{ background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: 'var(--ui-font)', fontSize: 13 }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-h)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}>
                   save
