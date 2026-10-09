@@ -618,9 +618,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           </div>
         )}
 
-        {/* GitHub 관련 버튼은 구분선 뒤 오른쪽 끝에 모은다. */}
-        <div className="self-stretch my-3 mx-1" style={{ width: 1, background: 'var(--border)' }} />
-
+        {/* GitHub 관련 버튼은 오른쪽 끝에 모은다. */}
         {/* GitHub import button */}
         <button onClick={() => setShowImport(true)}
           className="flex items-center gap-1.5 transition-all"
