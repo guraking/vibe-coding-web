@@ -182,6 +182,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const [iframeKey, setIframeKey] = useState(0)
   const blobUrlRef = useRef<string>('')
   const isImportRef = useRef(false)
+  const isEditRef = useRef(false)
   const [showExport, setShowExport] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
@@ -257,7 +258,9 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
       if (step !== 'deploying' && step !== 'deploy-done') {
         setDeployUrl(null)
       }
-      setSelectedFile(fileNames[0] || 'index.html')
+      // 편집기에서 직접 고친 변경이면 보던 파일을 유지한다.
+      if (isEditRef.current) isEditRef.current = false
+      else setSelectedFile(fileNames[0] || 'index.html')
     }
   }, [files])
 
@@ -307,6 +310,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const selectedLineCount = Math.max(1, selectedContent.split('\n').length)
   const highlightedContent = useMemo(() => highlightCode(selectedContent, selectedFile), [selectedContent, selectedFile])
   const highlightRef = useRef<HTMLPreElement>(null)
+  const gutterRef = useRef<HTMLDivElement>(null)
   const repoDeployHistory = useMemo(() => {
     if (!githubRepo) return []
     return deployHistory.filter((h) => h.owner === githubRepo.owner && h.repo === githubRepo.repo)
@@ -341,6 +345,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   const updateSelectedFileContent = (nextContent: string) => {
     if (!selectedFile) return
     const nextFiles = { ...files, [selectedFile]: nextContent }
+    isEditRef.current = true
     onFilesChange(nextFiles)
     setSaveLabel('saved')
     if (saveBadgeTimerRef.current) clearTimeout(saveBadgeTimerRef.current)
@@ -1030,10 +1035,11 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                 <div className="flex h-full">
                   <div className="overflow-hidden select-none"
                     style={{ width: 56, borderRight: '1px solid var(--border-s)', background: 'var(--bg-panel)' }}>
-                    <div className="h-full overflow-auto px-2 py-2">
+                    {/* 편집기 스크롤을 따라간다. 줄높이(13px × 1.6)를 .code-editor-layer 와 같게 둬야 줄 번호가 맞고, 아래 여백은 편집기 가로 스크롤바 높이만큼 더 둔다. */}
+                    <div ref={gutterRef} className="h-full overflow-hidden px-2 pt-2" style={{ paddingBottom: 24 }}>
                       {Array.from({ length: selectedLineCount }).map((_, i) => (
                         <div key={i}
-                          style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 12, lineHeight: 1.6, textAlign: 'right' }}>
+                          style={{ color: 'var(--txt-3)', fontFamily: 'var(--mono-font)', fontSize: 13, lineHeight: 1.6, textAlign: 'right' }}>
                           {i + 1}
                         </div>
                       ))}
@@ -1048,6 +1054,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
                       value={selectedContent}
                       onChange={(e) => updateSelectedFileContent(e.target.value)}
                       onScroll={(e) => {
+                        if (gutterRef.current) gutterRef.current.scrollTop = e.currentTarget.scrollTop
                         if (!highlightRef.current) return
                         highlightRef.current.scrollTop = e.currentTarget.scrollTop
                         highlightRef.current.scrollLeft = e.currentTarget.scrollLeft
