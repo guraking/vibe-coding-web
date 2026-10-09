@@ -62,6 +62,12 @@ export default function AnswerView({ message }: { message: Message | null }) {
       <div className="flex flex-col items-center justify-center h-full gap-3" style={{ color: 'var(--txt-3)' }}>
         <Sparkle style={{ width: 24, height: 24, color: 'var(--accent)' }} fill="currentColor" />
         <p style={{ fontSize: 'var(--fs-md)' }}>Claude의 답변이 여기에 표시됩니다</p>
+        <ul className="answer-tips">
+          <li>새 프로젝트는 디자인 방향 2~3안을 먼저 받고, 번호로 골라 시작합니다</li>
+          <li>"바로 만들어"라고 하면 제안 없이 곧장 코드를 만듭니다</li>
+          <li>화면 캡처를 붙여 넣으면 그 화면을 참고해서 만듭니다</li>
+          <li>만든 뒤에는 "버튼 색 바꿔줘"처럼 고칠 부분만 말하면 됩니다</li>
+        </ul>
       </div>
     )
   }

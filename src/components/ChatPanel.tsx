@@ -192,7 +192,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                   무엇을 만들어 볼까요?
                 </p>
                 <p style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)' }}>
-                  아이디어를 설명하면 Claude가 바로 코드로 만들어 드려요
+                  아이디어를 설명하면 Claude가 디자인 방향을 먼저 제안하고 코드로 만들어 드려요
                 </p>
               </div>
             </div>
