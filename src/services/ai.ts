@@ -31,8 +31,8 @@ export interface AIModel {
 // 첫 항목이 기본 모델이다.
 // 단가 출처: Anthropic 공식 가격표(2026-10 기준). 가격이 바뀌면 여기만 고친다.
 export const MODELS: AIModel[] = [
-  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true, inputPerMTok: 4, outputPerMTok: 20 },
   { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', fallback: true, inputPerMTok: 2, outputPerMTok: 10 },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true, inputPerMTok: 4, outputPerMTok: 20 },
   // Haiku 5.5 는 프롬프트 10만 토큰 초과 시 $0.50 / $2.50 (5배)
   { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', fallback: false, inputPerMTok: 0.1, outputPerMTok: 0.5, longPrompt: { overTokens: 100_000, multiplier: 5 } },
 ]
