@@ -86,10 +86,6 @@ function bundleFiles(files: Record<string, string>): string {
     return js ? `<script${pre}${post}>\n${js}\n</script>` : _m
   })
 
-  if (!html.includes('cdn.tailwindcss.com')) {
-    html = html.replace('</head>', '  <script src="https://cdn.tailwindcss.com"></script>\n</head>')
-  }
-
   // bare module specifier가 있는 경우 importmap으로 CDN 주소 매핑 (브라우저 호환)
   const hasBareImport = /import\s+.*from\s+['"](?!https?:\/\/|\/|\.\/|\.\.\/)/.test(html)
   if (hasBareImport && !html.includes('<script type="importmap"')) {

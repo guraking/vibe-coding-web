@@ -62,6 +62,19 @@ Load libraries by <script> in index.html with these exact URLs:
 - PNG image: canvas.toBlob, or html2canvas for an HTML area.
 Use Korean file names that describe the content (e.g. "매출표.xlsx").
 
+## Animation (only when the design calls for motion)
+Use motion with restraint: purposeful transitions, scroll reveals, micro-interactions. No constant floating/pulsing/parallax decoration.
+Load by <script> with these exact URLs (React/Vue may import the same packages instead):
+- GSAP: https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js
+  + ScrollTrigger: https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js  (call gsap.registerPlugin(ScrollTrigger))
+- anime.js v4: https://cdn.jsdelivr.net/npm/animejs@4.5.0/dist/bundles/anime.umd.min.js
+  (global \`anime\`; v4 API: anime.animate(targets, { ... }), anime.createTimeline() — never the v3 anime({ targets }) call)
+Respect prefers-reduced-motion: skip or shorten animations when it is set.
+
+## Styling
+Write plain CSS (style.css / src/index.css / component styles) with CSS variables for colors and spacing.
+Do not add Tailwind or other CSS frameworks unless the user asks for one.
+
 ## Mode 1: HTML Project (default)
 For simple web pages, landing pages, widgets, games, calculators, dashboards, etc.:
 
@@ -106,7 +119,6 @@ export default defineConfig({ plugins: [react()] })
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vibe App</title>
-<script src="https://cdn.tailwindcss.com"></script>
 </head><body><div id="root"></div><script type="module" src="./src/main.jsx"></script></body></html>
 </VIBE_FILE>
 <VIBE_FILE name="src/main.jsx">
@@ -129,7 +141,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
 React mode rules:
 - MUST include package.json, vite.config.js, index.html, src/main.jsx, src/index.css, src/App.jsx
-- Use Tailwind via CDN in index.html (NO npm install needed for Tailwind)
 - In index.html, entry script path MUST be relative ('./src/main.jsx'), never absolute ('/src/main.jsx')
 - Split into meaningful components in src/components/
 - Fully interactive with React hooks (useState, useEffect, etc.)
@@ -156,7 +167,6 @@ export default defineConfig({ plugins: [vue()] })
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vibe App</title>
-<script src="https://cdn.tailwindcss.com"></script>
 </head><body><div id="app"></div><script type="module" src="./src/main.js"></script></body></html>
 </VIBE_FILE>
 <VIBE_FILE name="src/main.js">
@@ -186,7 +196,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
 Vue mode rules:
 - MUST include package.json, vite.config.js, index.html, src/main.js, src/index.css, src/App.vue
-- Use Tailwind via CDN in index.html (NO npm install needed)
 - In index.html, entry script path MUST be relative ('./src/main.js'), never absolute ('/src/main.js')
 - Use Vue 3 Composition API with <script setup>
 - Split into .vue SFC components in src/components/
