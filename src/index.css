@@ -1,34 +1,35 @@
-﻿/**
+/**
  * 전역 스타일시트
- * Tailwind CSS와 커스텀 CSS 변수, 픽셀 폰트를 정의합니다.
+ * Tailwind CSS 와 디자인 토큰(색·글꼴·크기·반경), 공용 클래스를 정의한다.
  */
 
-/* Google Fonts 임포트 - 픽셀 스타일 폰트와 모노스페이스 폰트 */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* UI: Pretendard(한글 가변 폰트), 제목: Noto Serif KR, 코드: JetBrains Mono */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* Tailwind CSS 기본 스타일, 컴포넌트, 유틸리티 클래스 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Vibe-Kanban light theme */
-    --bg:        #f4f5f7;
+    /* 따뜻한 미색 계열. 텍스트·강조색은 --bg 위에서 4.5:1 이상을 유지한다. */
+    --bg:        #faf9f5;
     --bg-panel:  #ffffff;
-    --bg-card:   #f9fafb;
-    --bg-hover:  #f0f1f3;
-    --border:    #e2e4e9;
-    --border-s:  #eceef2;
+    --bg-card:   #f5f4ed;
+    --bg-hover:  #f0eee6;
+    --border:    #e8e6dc;
+    --border-s:  #f0eee6;
 
-    --txt:       #1a1d27;
-    --txt-2:     #5c6070;
-    --txt-3:     #9ea3b5;
+    --txt:       #141413;
+    --txt-2:     #3d3d3a;
+    --txt-3:     #6b6a63;
 
-    --accent:    #e8410a;
-    --accent-h:  #d03509;
-    --accent-bg: rgba(232,65,10,0.06);
-    --accent-bd: rgba(232,65,10,0.2);
+    /* Claude 테라코타(#c96442)는 흰 배경 대비 3.9:1 이라 작은 글씨용으로 한 단계 어둡게 쓴다. */
+    --accent:    #ae5630;
+    --accent-h:  #8f4526;
+    --accent-bg: rgba(174,86,48,0.08);
+    --accent-bd: rgba(174,86,48,0.25);
 
     --ok:        #16a34a;
     --ok-bg:     rgba(22,163,74,0.07);
@@ -42,102 +43,71 @@
     --err-bg:    rgba(220,38,38,0.07);
     --err-bd:    rgba(220,38,38,0.2);
 
-    --pixel-font: 'Press Start 2P', monospace;
-    --mono-font:  'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    --ui-font:      'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --display-font: 'Noto Serif KR', Georgia, serif;
+    --mono-font:    'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    /* 기존 픽셀 제목 자리(--pixel-font)는 제목용 세리프로 대체한다. */
+    --pixel-font:   var(--display-font);
+
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-md: 14px;
+    --fs-lg: 16px;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
   }
 
   * { box-sizing: border-box; }
 
   body {
-    background:
-      linear-gradient(0deg, rgba(255,255,255,0.55), rgba(255,255,255,0.55)),
-      repeating-linear-gradient(
-        0deg,
-        rgba(35, 43, 58, 0.05) 0px,
-        rgba(35, 43, 58, 0.05) 1px,
-        transparent 1px,
-        transparent 10px
-      ),
-      repeating-linear-gradient(
-        90deg,
-        rgba(35, 43, 58, 0.05) 0px,
-        rgba(35, 43, 58, 0.05) 1px,
-        transparent 1px,
-        transparent 10px
-      ),
-      var(--bg);
+    background: var(--bg);
     color: var(--txt);
-    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+    font-family: var(--ui-font);
     -webkit-font-smoothing: antialiased;
   }
 
+  /* 인라인 스타일로 그린 버튼·입력도 같은 반경을 갖게 한다. 개별 지정이 있으면 그쪽이 우선한다. */
+  button, input, select, textarea { border-radius: var(--radius-sm); }
+
   @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.3;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
   }
 
   @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   @keyframes pulse-scale {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 0.4;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.2;
-    }
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.1); opacity: 0.2; }
   }
 
   @keyframes wave {
-    0%, 100% {
-      transform: translateY(0);
-      opacity: 1;
-    }
-    50% {
-      transform: translateY(-8px);
-      opacity: 0.6;
-    }
+    0%, 100% { transform: translateY(0); opacity: 1; }
+    50% { transform: translateY(-8px); opacity: 0.6; }
   }
 
-  @keyframes pixel-loader {
-    0%, 100% {
-      opacity: 0.2;
-      transform: translateY(0);
-      background: rgba(232, 65, 10, 0.35);
-    }
-    50% {
-      opacity: 1;
-      transform: translateY(-1px);
-      background: var(--accent);
-    }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1); }
   }
 
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--txt-3); }
 
   select option { background: var(--bg-panel); color: var(--txt); }
 }
 
-/* Pixel logo style */
+/* 로고·제목 */
 .pixel-logo {
-  font-family: var(--pixel-font);
-  letter-spacing: 0.05em;
+  font-family: var(--display-font);
   color: var(--txt);
-  text-shadow: none;
 }
 
 /* Badge pill style */
@@ -146,44 +116,130 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 3px;
-  font-family: var(--mono-font);
-  font-size: 11px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
-.pixel-panel {
-  image-rendering: pixelated;
-  border-radius: 0;
+/* 마우스 클릭에는 표시하지 않고 키보드 포커스에만 링을 그린다. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 카드형 패널 */
+.pixel-panel {
+  border-radius: var(--radius-lg);
+}
+
+/* 로딩 점: 크기는 사용처에서 width/height 로 정한다. */
 .pixel-loader-cell {
   display: inline-block;
-  border-radius: 0;
-  background: rgba(232, 65, 10, 0.35);
-  box-shadow: 0 0 0 1px rgba(232, 65, 10, 0.12);
-  animation: pixel-loader 1.2s steps(2, end) infinite;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dot-pulse 1.2s ease-in-out infinite;
 }
 
-/* Retro scanline overlay (subtle) */
-.scanlines::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.03) 2px,
-    rgba(0,0,0,0.03) 4px
-  );
-  pointer-events: none;
-  z-index: 0;
+/* 답변 패널 마크다운 (AnswerView) */
+.answer-md {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+  color: var(--txt);
+  font-size: 15px;
+  line-height: 1.75;
+  word-break: break-word;
+}
+.answer-md > * + * { margin-top: 14px; }
+.answer-md h1, .answer-md h2, .answer-md h3 {
+  font-family: var(--display-font);
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 28px;
+}
+.answer-md h1 { font-size: 24px; }
+.answer-md h2 { font-size: 20px; }
+.answer-md h3 { font-size: 17px; }
+.answer-md > :first-child { margin-top: 0; }
+.answer-md ul, .answer-md ol { padding-left: 1.4em; }
+.answer-md ul { list-style: disc; }
+.answer-md ol { list-style: decimal; }
+.answer-md li + li { margin-top: 4px; }
+.answer-md strong { font-weight: 600; }
+.answer-md a { color: var(--accent); text-decoration: underline; }
+.answer-md blockquote {
+  padding-left: 14px;
+  border-left: 3px solid var(--border);
+  color: var(--txt-2);
+}
+.answer-md :not(pre) > code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  font-family: var(--mono-font);
+  font-size: 0.88em;
+}
+.answer-md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-md);
+}
+.answer-md th, .answer-md td {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.answer-md th { background: var(--bg-card); font-weight: 600; }
+
+.answer-code {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+.answer-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 14px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono-font);
+  font-size: var(--fs-xs);
+  color: var(--txt-2);
+}
+.answer-code-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--txt-2);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.answer-code-head button:hover { background: var(--bg-hover); color: var(--txt); }
+.answer-code pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 /* Mobile optimizations */
 @media (max-width: 767px) {
-  /* Larger tap targets */
   button, select, input, textarea {
     touch-action: manipulation;
   }
@@ -193,8 +249,9 @@
     font-size: 16px !important;
   }
 
-  /* Thinner scrollbar on mobile */
   ::-webkit-scrollbar { width: 2px; height: 2px; }
+
+  .answer-md { padding: 20px 16px 40px; }
 
   /* Safe area support */
   body {

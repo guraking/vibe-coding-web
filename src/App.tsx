@@ -5,7 +5,7 @@
  * - AI 챗 인터페이스 (좌측)
  * - 코드 미리보기 패널 (우측)
  * - 리얼타임 코드 스트리밍 및 렌더링
- * - 여러 AI 제공자 지원 (Groq, OpenAI, Gemini)
+ * - Claude API (Anthropic) 기반 코드 생성
  * - 프로젝트 타입 자동 감지 (HTML, React, Vue)
  * - 드래그 가능한 패널 리사이저
  */
@@ -14,10 +14,10 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import Header from './components/Header'  // 상단 헤더 (로고, 설정, API 키)
 import ChatPanel from './components/ChatPanel'  // 좌측 채팅 패널
 import PreviewPanel from './components/PreviewPanel'  // 우측 코드 미리보기 패널
+import type { PanelTab } from './components/PreviewPanel'
 // AI 서비스 함수들 (스트리밍, 파싱, 모델 정보)
-import { streamCode, parseVibe, RateLimitError, getDefaultModel, getModelsByProvider } from './services/ai'
+import { streamCode, parseVibe, MODELS } from './services/ai'
 import type { Message, TokenUsage } from './services/ai'
-import type { AIProvider } from './services/ai'
 
 /**
  * HTML 마크업 판별 함수
@@ -67,6 +67,16 @@ function fingerprintFiles(files: Record<string, string>): string {
  */
 const REALTIME_PATCH_THROTTLE_MS = 150
 
+// index.css 의 모바일 미디어 쿼리(max-width: 767px)와 같은 경계를 쓴다.
+const MOBILE_QUERY = '(max-width: 767px)'
+
+// 채팅 패널 너비 범위: 최소 200px, 최대 화면 너비의 60%. 키보드 조절은 한 번에 20px.
+const CHAT_MIN_WIDTH = 200
+const CHAT_KEY_STEP = 20
+function clampChatWidth(width: number): number {
+  return Math.max(CHAT_MIN_WIDTH, Math.min(width, window.innerWidth * 0.6))
+}
+
 /**
  * App 컴포넌트
  * 전체 애플리케이션의 메인 컴포넌트
@@ -78,40 +88,17 @@ export default function App() {
   const [projectType, setProjectType] = useState<'html' | 'react' | 'vue'>('html')
   const [isLoading, setIsLoading] = useState(false)
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null)
-  const [retryAt, setRetryAt] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!retryAt) return
-    const remaining = retryAt - Date.now()
-    if (remaining <= 0) { setRetryAt(null); return }
-    const t = setTimeout(() => setRetryAt(null), remaining)
-    return () => clearTimeout(t)
-  }, [retryAt])
-  const envKeys: Record<AIProvider, string> = {
-    groq: (import.meta.env.VITE_GROQ_API_KEY as string | undefined)?.trim() || '',
-    openai: (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim() || '',
-    gemini: (import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim() || '',
-  }
-  const [provider, setProvider] = useState<AIProvider>(() => {
-    const saved = localStorage.getItem('vibe_provider') as AIProvider | null
-    return saved === 'groq' || saved === 'openai' || saved === 'gemini' ? saved : 'groq'
+  // 오른쪽 패널 '답변' 탭에 띄울 메시지 위치와, 패널 탭 전환 요청
+  const [answerIndex, setAnswerIndex] = useState<number | null>(null)
+  const [panelFocus, setPanelFocus] = useState<{ tab: PanelTab; seq: number }>({ tab: 'preview', seq: 0 })
+  const focusPanel = (tab: PanelTab) => setPanelFocus((prev) => ({ tab, seq: prev.seq + 1 }))
+  const envKey = (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined)?.trim() || ''
+  const [activeApiKey, setActiveApiKey] = useState(() => envKey || localStorage.getItem('vibe_api_key_anthropic') || '')
+  // 저장된 모델이 현재 MODELS 에 없으면(이전 버전의 값 등) 기본 모델로 되돌린다.
+  const [activeModel, setActiveModel] = useState(() => {
+    const saved = localStorage.getItem('vibe_model')
+    return saved && MODELS.some((m) => m.id === saved) ? saved : MODELS[0].id
   })
-  const [apiKeys, setApiKeys] = useState<Record<AIProvider, string>>(() => ({
-    groq: envKeys.groq || localStorage.getItem('vibe_api_key_groq') || '',
-    openai: envKeys.openai || localStorage.getItem('vibe_api_key_openai') || '',
-    gemini: envKeys.gemini || localStorage.getItem('vibe_api_key_gemini') || '',
-  }))
-  const pickInitialModel = (targetProvider: AIProvider) => {
-    const saved = localStorage.getItem(`vibe_model_${targetProvider}`)
-    const available = getModelsByProvider(targetProvider)
-    if (saved && available.some((m) => m.id === saved)) return saved
-    return getDefaultModel(targetProvider)
-  }
-  const [modelByProvider, setModelByProvider] = useState<Record<AIProvider, string>>(() => ({
-    groq: pickInitialModel('groq'),
-    openai: pickInitialModel('openai'),
-    gemini: pickInitialModel('gemini'),
-  }))
   const bufferRef = useRef('')
   const lastRealtimePatchRef = useRef('')
   const lastRealtimePatchAtRef = useRef(0)
@@ -121,13 +108,6 @@ export default function App() {
     projectType: 'html' | 'react' | 'vue'
     fingerprint: string
   } | null>(null)
-  const isEnvKeyByProvider: Record<AIProvider, boolean> = {
-    groq: Boolean(envKeys.groq),
-    openai: Boolean(envKeys.openai),
-    gemini: Boolean(envKeys.gemini),
-  }
-  const activeApiKey = apiKeys[provider]
-  const activeModel = modelByProvider[provider]
 
   // Resizable chat panel state
   // 드래그 가능한 패널 리사이저 상태
@@ -139,6 +119,16 @@ export default function App() {
   const isDragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)
+
+  // 모바일에서는 채팅/미리보기를 탭으로 하나씩 보여준다.
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches)
+  const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat')
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY)
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   /**
    * 드래그 시작 핸들러
@@ -161,9 +151,16 @@ export default function App() {
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current) return
     const delta = e.clientX - startX.current
-    const next = Math.max(200, Math.min(startWidth.current + delta, window.innerWidth * 0.6))
-    setChatWidth(next)
+    setChatWidth(clampChatWidth(startWidth.current + delta))
   }, [])
+
+  // 드래그 대신 손잡이에 포커스를 두고 ←/→ 로 너비를 조절한다.
+  const onResizerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault()
+    const step = e.key === 'ArrowLeft' ? -CHAT_KEY_STEP : CHAT_KEY_STEP
+    setChatWidth((w) => clampChatWidth(w + step))
+  }
 
   /**
    * 마우스 릴리즈 핸들러
@@ -201,19 +198,14 @@ export default function App() {
       }
     }
   }, [])
-  const handleApiKeyChange = (targetProvider: AIProvider, key: string) => {
-    setApiKeys((prev) => ({ ...prev, [targetProvider]: key }))
-    localStorage.setItem(`vibe_api_key_${targetProvider}`, key)
+  const handleApiKeyChange = (key: string) => {
+    setActiveApiKey(key)
+    localStorage.setItem('vibe_api_key_anthropic', key)
   }
 
-  const handleProviderChange = (next: AIProvider) => {
-    setProvider(next)
-    localStorage.setItem('vibe_provider', next)
-  }
-
-  const handleModelChange = (targetProvider: AIProvider, nextModel: string) => {
-    setModelByProvider((prev) => ({ ...prev, [targetProvider]: nextModel }))
-    localStorage.setItem(`vibe_model_${targetProvider}`, nextModel)
+  const handleModelChange = (nextModel: string) => {
+    setActiveModel(nextModel)
+    localStorage.setItem('vibe_model', nextModel)
   }
   /**
    * AI 코드 생성 메인 로직
@@ -231,11 +223,10 @@ export default function App() {
    *    - <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식 검증
    *    - 필수 파일 부족 시 AI에 재생성 요청
    * 8. 에러 처리
-   *    - Groq 레이트 리미트: retryAt 설정하여 사용자에게 재시도 가능 시간 표시
-   *    - 기타 에러: 에러 메시지를 채팅에 표시
+   *    - 에러 메시지를 채팅에 표시 (429·5xx 는 SDK 가 기본 2회 재시도한 뒤 도달)
    */
   const handleSend = async (prompt: string) => {
-    if (!activeApiKey || isLoading || (provider === 'groq' && retryAt)) return
+    if (!activeApiKey || isLoading) return
     const userMsg: Message = { role: 'user', content: prompt }
     const history = [...messages, userMsg]
     setMessages(history)
@@ -250,9 +241,17 @@ export default function App() {
     }
     const placeholder: Message = { role: 'assistant', content: '', files: {} }
     setMessages([...history, placeholder])
+    setAnswerIndex(history.length)
+    let panelFocused = false
     try {
-      for await (const chunk of streamCode(provider, activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
+      for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, setTokenUsage)) {
         bufferRef.current += chunk
+        // 응답 첫 글자로 패널 탭을 고른다: 코드 생성 응답은 <VIBE_FILE> 로 시작하므로 미리보기, 그 외는 답변.
+        // shortcut: 모델이 태그 앞에 설명을 먼저 쓰면 답변 탭이 열린다. 오분류가 잦으면 '<VIBE_' 등장 시 미리보기로 재전환한다.
+        if (!panelFocused && bufferRef.current.trim()) {
+          panelFocused = true
+          focusPanel(bufferRef.current.trim().startsWith('<') ? 'preview' : 'answer')
+        }
         const parsedChunk = parseVibe(bufferRef.current)
         const { explanation } = parsedChunk
 
@@ -282,7 +281,12 @@ export default function App() {
 
         setMessages((prev) => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: explanation || '생성 중...', files: {} }
+          // VIBE 태그가 없으면 일반 대화 답변이므로 받은 텍스트를 그대로 보여준다.
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: explanation || (bufferRef.current.includes('<VIBE_') ? '생성 중...' : bufferRef.current),
+            files: {},
+          }
           return updated
         })
       }
@@ -292,7 +296,8 @@ export default function App() {
       let parsed = parseVibe(bufferRef.current)
 
         // Auto-repair response format if model didn't generate valid code structure
-      if (!isValidGeneratedProject(parsed.files, parsed.projectType)) {
+      // 코드를 만들려다(<VIBE_FILE> 존재) 구조가 깨진 경우에만 보정한다. 태그가 없으면 일반 대화 답변이다.
+      if (bufferRef.current.includes('<VIBE_FILE') && !isValidGeneratedProject(parsed.files, parsed.projectType)) {
         const repairPrompt = [
           '아래 원문 응답은 형식이 깨졌거나 코드가 부족합니다.',
           '반드시 <VIBE_FILE>, <VIBE_TYPE>, <VIBE_EXPLANATION> 형식으로만 다시 출력하세요.',
@@ -315,7 +320,6 @@ export default function App() {
 
         let repairedRaw = ''
         for await (const chunk of streamCode(
-          provider,
           activeApiKey,
           activeModel,
           [{ role: 'user', content: repairPrompt }],
@@ -342,7 +346,9 @@ export default function App() {
         const updated = [...prev]
         updated[updated.length - 1] = {
           role: 'assistant',
-          content: explanation || '완성됐습니다! 코드 탭에서 소스를 확인할 수 있어요.',
+          content: explanation || (bufferRef.current.includes('<VIBE_')
+            ? '완성됐습니다! 코드 탭에서 소스를 확인할 수 있어요.'
+            : bufferRef.current.trim()),
           files,
         }
         return updated
@@ -353,25 +359,12 @@ export default function App() {
         clearTimeout(realtimePatchTimerRef.current)
         realtimePatchTimerRef.current = null
       }
-      if (provider === 'groq' && err instanceof RateLimitError) {
-        setRetryAt(Date.now() + err.retryAfterSeconds * 1000)
-        setMessages((prev) => {
-          const updated = [...prev]
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: `__RATELIMIT__${err.retryAfterSeconds}__${err.limitTokens}__${err.usedTokens}`,
-            files: {},
-          }
-          return updated
-        })
-      } else {
-        const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
-        setMessages((prev) => {
-          const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, files: {} }
-          return updated
-        })
-      }
+      const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다'
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: `오류: ${message}`, files: {} }
+        return updated
+      })
     } finally {
       pendingRealtimePatchRef.current = null
       if (realtimePatchTimerRef.current) {
@@ -392,6 +385,13 @@ export default function App() {
     setProjectType(importedType)
   }
 
+  // 대화의 답변 카드를 누르면 그 답변을 패널에 연다. 모바일은 패널 탭으로 넘어간다.
+  const handleOpenAnswer = (index: number) => {
+    setAnswerIndex(index)
+    focusPanel('answer')
+    setMobileTab('preview')
+  }
+
   const handleFilesChange = (nextFiles: Record<string, string>) => {
     projectFilesRef.current = nextFiles
     setProjectFiles(nextFiles)
@@ -405,28 +405,57 @@ export default function App() {
       onMouseLeave={onMouseUp}
     >
       <Header
-        provider={provider}
-        apiKeys={apiKeys}
+        apiKey={activeApiKey}
         model={activeModel}
-        onProviderChange={handleProviderChange}
         onApiKeyChange={handleApiKeyChange}
         onModelChange={handleModelChange}
-        isEnvKeyByProvider={isEnvKeyByProvider}
+        isEnvKey={Boolean(envKey)}
+        isMobile={isMobile}
       />
+      {isMobile && (
+        <div role="tablist" className="flex flex-shrink-0" style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
+          {(['chat', 'preview'] as const).map((tab) => (
+            <button key={tab} role="tab" aria-selected={mobileTab === tab} onClick={() => setMobileTab(tab)}
+              className="flex-1"
+              style={{
+                height: 44,
+                fontFamily: 'var(--ui-font)',
+                fontSize: 13,
+                background: 'transparent',
+                border: 'none',
+                borderBottom: mobileTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+                color: mobileTab === tab ? 'var(--txt)' : 'var(--txt-2)',
+                cursor: 'pointer',
+              }}>
+              {tab === 'chat' ? 'Chat' : 'Preview'}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-1 overflow-hidden">
-        {/* Chat panel with drag handle */}
-        <ChatPanel
-          messages={messages}
-          onSend={handleSend}
-          isLoading={isLoading}
-          hasApiKey={!!activeApiKey}
-          width={chatWidth}
-          tokenUsage={tokenUsage}
-          retryAt={provider === 'groq' ? retryAt : null}
-        />
+        {/* 모바일에서도 두 패널을 모두 마운트해 둔다. 탭 전환으로 입력 중인 내용·배포 상태가 사라지지 않게 하기 위함이다. */}
+        <div className={`flex min-w-0 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'chat' ? 'hidden' : ''}`}>
+          <ChatPanel
+            messages={messages}
+            onSend={handleSend}
+            isLoading={isLoading}
+            hasApiKey={!!activeApiKey}
+            width={isMobile ? undefined : chatWidth}
+            tokenUsage={tokenUsage}
+            activeAnswerIndex={answerIndex}
+            onOpenAnswer={handleOpenAnswer}
+          />
+        </div>
         {/* Drag handle */}
-        <div
+        {!isMobile && <div
           onMouseDown={onMouseDown}
+          onKeyDown={onResizerKeyDown}
+          tabIndex={0}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="채팅 패널 너비 조절 (←/→)"
+          aria-valuenow={Math.round(chatWidth)}
+          aria-valuemin={CHAT_MIN_WIDTH}
           style={{
             width: 1,
             flexShrink: 0,
@@ -436,15 +465,19 @@ export default function App() {
           }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
           onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
-        />
+        />}
         {/* Code preview panel */}
-        <PreviewPanel
-          files={projectFiles}
-          projectType={projectType}
-          isLoading={isLoading}
-          onImport={handleImportProject}
-          onFilesChange={handleFilesChange}
-        />
+        <div className={`flex flex-1 min-w-0 ${isMobile && mobileTab !== 'preview' ? 'hidden' : ''}`}>
+          <PreviewPanel
+            files={projectFiles}
+            projectType={projectType}
+            isLoading={isLoading}
+            onImport={handleImportProject}
+            onFilesChange={handleFilesChange}
+            answer={answerIndex !== null ? messages[answerIndex] ?? null : null}
+            focus={panelFocus}
+          />
+        </div>
       </div>
     </div>
   )

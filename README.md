@@ -4,7 +4,7 @@ AI 기반 프론트엔드 코드 생성 웹 애플리케이션입니다. 자연�
 
 ## 주요 기능
 
-- **자연어 → 코드 생성** — Groq / ChatGPT / Gemini API를 이용해 멀티 파일 웹 프로젝트를 자동 생성
+- **자연어 → 코드 생성** — Claude API를 이용해 멀티 파일 웹 프로젝트를 자동 생성
 - **실시간 미리보기** — 생성된 HTML / React / Vue 앱을 iframe에서 즉시 확인
 - **3가지 프로젝트 타입** — HTML+CSS+JS, React(Vite), Vue 3(Vite) 지원
 - **대화형 수정** — 채팅 이력을 유지하면서 프로젝트를 반복적으로 개선
@@ -19,7 +19,7 @@ AI 기반 프론트엔드 코드 생성 웹 애플리케이션입니다. 자연�
 | 프레임워크 | React 18 + TypeScript |
 | 빌드 도구 | Vite 6 |
 | 스타일링 | Tailwind CSS |
-| AI API | [Groq](https://groq.com), [OpenAI(ChatGPT)](https://platform.openai.com), [Google Gemini](https://ai.google.dev) |
+| AI API | [Claude API](https://platform.claude.com/docs) (`@anthropic-ai/sdk`) |
 | 아이콘 | lucide-react |
 
 ## 시작하기
@@ -39,15 +39,14 @@ npm install
 
 ### 3. API 키 설정
 
-[Groq Console](https://console.groq.com), [OpenAI Platform](https://platform.openai.com), [Google AI Studio](https://aistudio.google.com)에서 API 키를 발급받은 후 `.env.local` 파일을 생성합니다.
+[Claude Console](https://platform.claude.com)에서 API 키를 발급받은 후 `.env.local` 파일을 생성합니다.
 
 ```env
-VITE_GROQ_API_KEY=gsk_your_key_here
-VITE_OPENAI_API_KEY=sk_your_key_here
-VITE_GEMINI_API_KEY=AIza_your_key_here
+VITE_ANTHROPIC_API_KEY=sk-ant-your_key_here
 ```
 
-> `.env.local`이 없으면 앱 실행 후 설정 버튼에서 공급자별 키를 직접 입력할 수 있습니다.
+> `.env.local`이 없으면 앱 실행 후 설정 버튼에서 키를 직접 입력할 수 있습니다.
+> `VITE_` 변수는 빌드 결과물에 그대로 포함됩니다. 공개 배포(GitHub Pages) 빌드에는 키를 넣지 말고 설정 모달에서 입력하세요.
 
 ### 4. 개발 서버 실행
 
@@ -91,8 +90,8 @@ git push origin main
 
 ## 사용 방법
 
-1. 상단에서 AI 공급자(Groq / ChatGPT / Gemini)를 선택하고 모델을 선택합니다.
-2. 설정 모달에서 공급자별 API 키를 각각 저장합니다.
+1. 상단에서 Claude 모델(Opus 5.5 / Sonnet 5.5 / Haiku 5.5)을 선택합니다.
+2. 설정 모달에서 Anthropic API 키를 저장합니다.
 3. 채팅 입력창에 만들고 싶은 앱을 한국어 또는 영어로 설명합니다.
 4. 우측 미리보기 패널에서 결과를 확인하고, 추가 수정 요청을 입력합니다.
 5. 완성된 프로젝트는 내보내기(Export) 버튼으로 ZIP 파일로 다운로드할 수 있습니다.
