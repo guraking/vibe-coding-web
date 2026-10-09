@@ -1,4 +1,4 @@
-import { Plus, Trash2, MessageSquare } from 'lucide-react'
+import { Plus, Trash2, MessageSquare, PanelLeft } from 'lucide-react'
 import type { ChatSummary } from '../services/chatStore'
 
 /**
@@ -15,6 +15,7 @@ interface Props {
   onSelect: (id: string) => void
   onNew: () => void
   onDelete: (id: string) => void
+  onClose: () => void
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -26,7 +27,7 @@ function groupLabel(updatedAt: number, todayStart: number): string {
   return '이전'
 }
 
-export default function Sidebar({ chats, activeId, busy, error, onSelect, onNew, onDelete }: Props) {
+export default function Sidebar({ chats, activeId, busy, error, onSelect, onNew, onDelete, onClose }: Props) {
   const todayStart = new Date().setHours(0, 0, 0, 0)
   const groups: { label: string; items: ChatSummary[] }[] = []
   for (const chat of chats) {
@@ -38,10 +39,13 @@ export default function Sidebar({ chats, activeId, busy, error, onSelect, onNew,
 
   return (
     <nav aria-label="대화 목록" className="sidebar flex flex-col h-full">
-      <div className="p-3 flex-shrink-0">
+      <div className="p-3 flex-shrink-0 flex items-center gap-2">
         <button onClick={onNew} disabled={busy} className="sidebar-new">
           <Plus style={{ width: 16, height: 16 }} />
           <span>새 대화</span>
+        </button>
+        <button onClick={onClose} className="icon-btn" aria-label="대화 목록 접기" aria-expanded>
+          <PanelLeft style={{ width: 18, height: 18 }} />
         </button>
       </div>
 

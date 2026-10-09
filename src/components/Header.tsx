@@ -52,10 +52,12 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
       <header className="flex items-center justify-between flex-shrink-0 select-none gap-3"
         style={{ height: 48, padding: '0 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
-        <button onClick={onToggleSidebar} className="icon-btn"
-          aria-label={sidebarOpen ? '대화 목록 접기' : '대화 목록 펼치기'} aria-expanded={sidebarOpen}>
-          <PanelLeft style={{ width: 18, height: 18 }} />
-        </button>
+        {/* 펼쳐져 있을 때는 사이드바 안의 접기 버튼을 쓴다. */}
+        {!sidebarOpen && (
+          <button onClick={onToggleSidebar} className="icon-btn" aria-label="대화 목록 펼치기" aria-expanded={false}>
+            <PanelLeft style={{ width: 18, height: 18 }} />
+          </button>
+        )}
         <button onClick={reloadPage} className="flex items-center gap-2" aria-label="새 세션 시작"
           style={{ background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer', padding: 0 }}>
           <img src={logo} alt="" width={30} height={30} />

@@ -134,7 +134,7 @@ export default function App() {
   // isDragging: 드래그 중 여부 플래그
   // startX: 드래그 시작 시 마우스 X 좌표
   // startWidth: 드래그 시작 시 초기 패널 너비
-  const [chatWidth, setChatWidth] = useState(340)
+  const [chatWidth, setChatWidth] = useState(440)
   const isDragging = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)
@@ -560,6 +560,7 @@ export default function App() {
       onSelect={handleSelectChat}
       onNew={handleNewChat}
       onDelete={handleDeleteChat}
+      onClose={toggleSidebar}
     />
   )
 
