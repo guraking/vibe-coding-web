@@ -3,9 +3,31 @@
  * Tailwind CSS 와 디자인 토큰(색·글꼴·크기·반경), 공용 클래스를 정의한다.
  */
 
-/* UI: Pretendard(한글 가변 폰트), 제목: Noto Serif KR, 코드: JetBrains Mono */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+/* UI: Pretendard(한글 가변 폰트), 코드: JetBrains Mono + D2Coding(한글) 은 src/assets/fonts 에서 직접 제공한다. 제목: Noto Serif KR 은 CDN. */
+@import './assets/fonts/pretendard/pretendardvariable-dynamic-subset.css';
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap');
+
+/* JetBrains Mono v2.304 (OFL) */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/JetBrainsMono-Medium.woff2') format('woff2');
+}
+/* D2Coding v1.3.2 (OFL) Regular 를 한글 자모·음절·CJK 기호만 남겨 woff2 로 변환한 파일. 한글이 영문 2칸 폭이라 JetBrains Mono 와 정렬이 맞는다. */
+@font-face {
+  font-family: 'D2Coding';
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('./assets/fonts/D2Coding-Hangul.woff2') format('woff2');
+  unicode-range: U+1100-11FF, U+3000-303F, U+3130-318F, U+AC00-D7A3;
+}
 
 @tailwind base;
 @tailwind components;
@@ -47,7 +69,7 @@
 
     --ui-font:      'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --display-font: 'Noto Serif KR', Georgia, serif;
-    --mono-font:    'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    --mono-font:    'JetBrains Mono', 'D2Coding', 'Fira Code', ui-monospace, monospace;
     /* 기존 픽셀 제목 자리(--pixel-font)는 제목용 세리프로 대체한다. */
     --pixel-font:   var(--display-font);
 
