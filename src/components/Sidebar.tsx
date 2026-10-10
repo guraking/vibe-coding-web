@@ -1,4 +1,4 @@
-import { Plus, Trash2, MessageSquare, PanelLeft } from 'lucide-react'
+import { Plus, Trash2, MessageSquare, PanelLeft, Loader2 } from 'lucide-react'
 import type { ChatSummary } from '../services/chatStore'
 
 /**
@@ -10,6 +10,8 @@ import type { ChatSummary } from '../services/chatStore'
 interface Props {
   chats: ChatSummary[]
   activeId: string | null
+  // 불러오는 중인 대화. 응답 전에도 이 항목을 선택된 것으로 표시한다.
+  loadingId: string | null
   busy: boolean
   error: string
   onSelect: (id: string) => void
@@ -27,7 +29,7 @@ function groupLabel(updatedAt: number, todayStart: number): string {
   return '이전'
 }
 
-export default function Sidebar({ chats, activeId, busy, error, onSelect, onNew, onDelete, onClose }: Props) {
+export default function Sidebar({ chats, activeId, loadingId, busy, error, onSelect, onNew, onDelete, onClose }: Props) {
   const todayStart = new Date().setHours(0, 0, 0, 0)
   const groups: { label: string; items: ChatSummary[] }[] = []
   for (const chat of chats) {
@@ -60,9 +62,11 @@ export default function Sidebar({ chats, activeId, busy, error, onSelect, onNew,
             <h2 className="sidebar-group">{group.label}</h2>
             <ul>
               {group.items.map((chat) => (
-                <li key={chat.id} className="sidebar-item" data-active={chat.id === activeId}>
+                <li key={chat.id} className="sidebar-item" data-active={chat.id === (loadingId ?? activeId)} aria-busy={chat.id === loadingId}>
                   <button onClick={() => onSelect(chat.id)} disabled={busy} className="sidebar-item-open" title={chat.title}>
-                    <MessageSquare aria-hidden="true" style={{ width: 14, height: 14, flexShrink: 0 }} />
+                    {chat.id === loadingId
+                      ? <Loader2 aria-label="불러오는 중" className="motion-safe:animate-spin" style={{ width: 14, height: 14, flexShrink: 0 }} />
+                      : <MessageSquare aria-hidden="true" style={{ width: 14, height: 14, flexShrink: 0 }} />}
                     <span className="truncate">{chat.title}</span>
                   </button>
                   <button onClick={() => onDelete(chat.id)} disabled={busy} className="sidebar-item-delete" aria-label={`${chat.title} 삭제`}>

@@ -15,7 +15,7 @@ import { PanelLeft } from 'lucide-react'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
 import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
 import type { GithubRepo } from './services/chatStore'
-import type { ChatSummary } from './services/chatStore'
+import type { ChatSummary, StoredChat } from './services/chatStore'
 import { useEscapeKey } from './hooks/useEscapeKey'
 import Header from './components/Header'  // 상단 헤더 (로고, 설정, API 키)
 import ChatPanel from './components/ChatPanel'  // 좌측 채팅 패널
@@ -200,6 +200,13 @@ export default function App() {
   // 대화를 바꿀 때 PreviewPanel 을 새로 마운트해 배포 상태 등 내부 상태를 비운다(예전 새로고침과 같은 효과).
   const [sessionKey, setSessionKey] = useState(0)
 
+  // 한 번 불러오거나 저장한 대화. 새로고침하면 비워진다.
+  const chatCacheRef = useRef(new Map<string, StoredChat>())
+  // 지금 불러오는 중인 대화 id. 사이드바에 선택 표시와 "불러오는 중"을 바로 띄운다.
+  const [loadingChatId, setLoadingChatId] = useState<string | null>(null)
+  // 키가 바뀌면 다른 사용자의 대화이므로 보관본을 비운다.
+  useEffect(() => { chatCacheRef.current.clear() }, [activeApiKey])
+
   // API 키가 없으면 저장소도 쓰지 않는다.
   useEffect(() => {
     if (!activeApiKey) return
@@ -232,6 +239,7 @@ export default function App() {
         projectType,
         githubRepo,
       }
+      chatCacheRef.current.set(chat.id, chat)
       saveChat(activeApiKey, chat)
         .then(() => {
           unsavedRef.current = false
@@ -579,9 +587,10 @@ export default function App() {
   }
 
   const handleSelectChat = async (id: string) => {
-    if (isLoading || id === chatId) return
+    if (isLoading || id === chatId || loadingChatId) return
+    setLoadingChatId(id)
     try {
-      const chat = await loadChat(activeApiKey, id)
+      const chat = chatCacheRef.current.get(id) ?? await loadChat(activeApiKey, id)
       if (!chat) {
         setChats((prev) => prev.filter((c) => c.id !== id))
         setStorageError('대화를 찾을 수 없습니다')
@@ -601,8 +610,11 @@ export default function App() {
       focusPanel('preview')
       setMobileTab('chat')
       if (isMobile) setSidebarOpen(false)
+      chatCacheRef.current.set(chat.id, chat)
     } catch {
       setStorageError('대화를 불러오지 못했습니다')
+    } finally {
+      setLoadingChatId(null)
     }
   }
 
@@ -612,6 +624,7 @@ export default function App() {
     if (!window.confirm(`'${title}' 대화를 삭제할까요? 되돌릴 수 없습니다.`)) return
     try {
       await deleteChat(activeApiKey, id)
+      chatCacheRef.current.delete(id)
       setChats((prev) => prev.filter((c) => c.id !== id))
       if (id === chatId) handleNewChat()
     } catch {
@@ -656,6 +669,7 @@ export default function App() {
     <Sidebar
       chats={chats}
       activeId={chatId}
+      loadingId={loadingChatId}
       busy={isLoading}
       error={storageError}
       onSelect={handleSelectChat}

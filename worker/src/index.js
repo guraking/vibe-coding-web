@@ -117,6 +117,8 @@ export default {
       cors['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, X-Chat-Title, X-Chat-Updated-At'
       cors['Access-Control-Allow-Methods'] = 'GET, PUT, DELETE, OPTIONS'
       cors['Vary'] = 'Origin'
+      // 사전 확인(OPTIONS) 결과를 하루 동안 재사용하게 해 요청마다 왕복 한 번을 줄인다. 브라우저마다 상한이 있다(Chrome 2시간).
+      cors['Access-Control-Max-Age'] = '86400'
     }
     let response
     try {
