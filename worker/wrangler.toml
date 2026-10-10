@@ -2,6 +2,8 @@ name = "vibe-chat"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
+# 버킷 수명 주기 규칙 'expire-chats-30d': chats/ 아래 객체는 마지막 저장 후 30일이 지나면 삭제된다(keys/ 는 제외).
+# 이 규칙은 이 파일이 아니라 버킷 설정에 있다. 확인: npx wrangler r2 bucket lifecycle list vibe-chat
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "vibe-chat"
