@@ -1,12 +1,11 @@
 import type { Message } from './ai'
 
 /**
- * 대화 저장소 (IndexedDB)
+ * 대화 저장소 (Cloudflare Worker + R2, worker/ 참고)
  *
- * 대화 1건 = 메시지 + 그 대화에서 만든 프로젝트 파일. 방문자 브라우저 안에만 저장된다.
- * GitHub Pages 에서는 같은 계정의 다른 저장소 사이트와 출처(guraking.github.io)를 공유하므로
- * DB 이름에 앱 접두어를 붙여 구분한다.
- * 모든 함수는 실패 시(시크릿 창, 용량 초과, IndexedDB 미지원) reject 한다. 호출 측에서 사용자에게 알린다.
+ * 대화 1건 = 메시지 + 그 대화에서 만든 프로젝트 파일. 접속 키별로 서버에 저장되어 다른 기기에서도 보인다.
+ * 서버 주소는 빌드 시 VITE_CHAT_SERVER_URL 로 받는다. 접속 키는 localStorage 에 둔다.
+ * 모든 함수는 실패 시(네트워크 오류, 서버 오류, 키 거부) reject 한다. 호출 측에서 사용자에게 알린다.
  */
 
 export interface StoredChat {
@@ -25,56 +24,55 @@ export type GithubRepo = { owner: string; repo: string; branch: string }
 
 export type ChatSummary = Pick<StoredChat, 'id' | 'title' | 'updatedAt'>
 
-const DB_NAME = 'vibe-coding-chats'
-const DB_VERSION = 1
-const STORE = 'chats'
+const SERVER_URL = import.meta.env.VITE_CHAT_SERVER_URL
+const KEY_STORAGE = 'vibe_chat_key'
+/** 접속 키가 거부되면 window 에 이 이벤트를 보낸다. App 이 받아 접속 화면으로 돌린다. */
+export const AUTH_EXPIRED_EVENT = 'chat-auth-expired'
 
-let dbPromise: Promise<IDBDatabase> | null = null
+export const hasKey = () => !!localStorage.getItem(KEY_STORAGE)
 
-function openDb(): Promise<IDBDatabase> {
-  if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION)
-      request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'id' })
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-    // 열기에 실패하면 다음 호출에서 다시 시도한다.
-    dbPromise.catch(() => { dbPromise = null })
+/** 404 는 호출 측이 판단하도록 그대로 돌려준다. 그 밖의 실패·네트워크 오류는 reject 한다. */
+async function request(path: string, init: RequestInit = {}, key = localStorage.getItem(KEY_STORAGE) ?? ''): Promise<Response> {
+  if (!SERVER_URL) throw new Error('VITE_CHAT_SERVER_URL 이 설정되지 않았습니다')
+  const res = await fetch(`${SERVER_URL}/api${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${key}` } })
+  if (res.status === 401) {
+    localStorage.removeItem(KEY_STORAGE)
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
   }
-  return dbPromise
+  if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`)
+  return res
 }
 
-async function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
-    const request = action(tx.objectStore(STORE))
-    tx.oncomplete = () => resolve(request.result)
-    tx.onerror = () => reject(tx.error)
-    tx.onabort = () => reject(tx.error)
+/** 키를 서버에서 확인한 뒤에만 저장한다. */
+export async function login(key: string): Promise<void> {
+  const res = await request('/me', {}, key).catch((e) => {
+    throw new Error(e.message === 'HTTP 401' ? '접속 키가 올바르지 않습니다' : '서버에 연결할 수 없습니다')
   })
+  if (!res.ok) throw new Error('접속하지 못했습니다')
+  localStorage.setItem(KEY_STORAGE, key)
 }
 
-/** 최근 수정 순 목록. */
+/** 최근 수정 순 목록. 서버가 정렬해 준다. */
 export async function listChats(): Promise<ChatSummary[]> {
-  // shortcut: 목록을 위해 메시지까지 모두 읽는다. 대화가 수백 건을 넘어 느려지면 updatedAt 인덱스 + 요약 전용 store 로 바꾼다.
-  const all = await run('readonly', (store) => store.getAll() as IDBRequest<StoredChat[]>)
-  return all
-    .map(({ id, title, updatedAt }) => ({ id, title, updatedAt }))
-    .sort((a, b) => b.updatedAt - a.updatedAt)
+  return (await request('/chats')).json()
 }
 
 export async function loadChat(id: string): Promise<StoredChat | undefined> {
-  return run('readonly', (store) => store.get(id) as IDBRequest<StoredChat | undefined>)
+  const res = await request(`/chats/${encodeURIComponent(id)}`)
+  return res.status === 404 ? undefined : res.json()
 }
 
 export async function saveChat(chat: StoredChat): Promise<void> {
-  await run('readwrite', (store) => store.put(chat))
+  await request(`/chats/${encodeURIComponent(chat.id)}`, {
+    method: 'PUT',
+    // 서버는 본문을 파싱하지 않으므로 목록용 제목·수정 시각을 헤더로 함께 보낸다.
+    headers: { 'Content-Type': 'application/json', 'X-Chat-Title': encodeURIComponent(chat.title), 'X-Chat-Updated-At': String(chat.updatedAt) },
+    body: JSON.stringify(chat),
+  })
 }
 
 export async function deleteChat(id: string): Promise<void> {
-  await run('readwrite', (store) => store.delete(id))
+  await request(`/chats/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 /** 첫 질문 앞부분을 제목으로 쓴다. */
