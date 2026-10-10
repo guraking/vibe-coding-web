@@ -79,7 +79,8 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
   const [imageError, setImageError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // 결과물 창이 열리거나 닫혀 폭이 바뀌면 글이 다시 줄바꿈되므로 그때도 맨 아래로 내린다. 드래그로 폭을 조절할 때는 내리지 않는다.
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, width === undefined])
 
   // 남은 칸만큼만 받고, 형식이 맞지 않거나 읽기에 실패한 파일은 메시지로 알린다.
   const addImageFiles = async (files: File[]) => {
