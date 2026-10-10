@@ -1,5 +1,6 @@
 ﻿import { useRef, useState } from 'react'
 import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun, SquarePen } from 'lucide-react'
+import logo from '../logo.png'
 import { MODELS } from '../services/ai'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useDialogFocus } from '../hooks/useDialogFocus'
@@ -21,12 +22,11 @@ interface Props {
 }
 
 const ENV_VAR = 'VITE_ANTHROPIC_API_KEY'
-const DOCS_URL = 'https://platform.claude.com/docs'
 
 /**
  * Header 컴포넌트: 대화 칸 위 머리줄
  * - 왼쪽: Claude 모델 선택
- * - 오른쪽: API 키 설정 모달, 테마 전환, 문서 링크, 새 대화
+ * - 오른쪽: API 키 설정 모달, 테마 전환, 새 대화
  * - 모바일/데스크톱 반응형 레이아웃
  */
 export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile, sidebarOpen, onToggleSidebar, theme, onToggleTheme, onNewChat, busy }: Props) {
@@ -49,7 +49,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
 
   return (
     <>
-      {/* 대화 칸 위 48px 한 줄. 왼쪽은 모델 선택, 오른쪽은 설정·새 대화. 모바일에서는 문서 링크를 숨긴다. */}
+      {/* 대화 칸 위 48px 한 줄. 왼쪽은 모델 선택, 오른쪽은 설정·새 대화. 모바일에서는 로고를 숨긴다. */}
       <header className="flex items-center justify-between flex-shrink-0 select-none gap-2"
         style={{ height: 48, padding: '0 8px', background: 'var(--bg-panel)' }}>
         <div className="flex items-center gap-1 min-w-0">
@@ -59,9 +59,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             <PanelLeft style={{ width: 18, height: 18 }} />
           </button>
         )}
-          {!isMobile && (
-            <span style={{ fontFamily: 'var(--display-font)', fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--txt)', paddingLeft: 8 }}>Vibe</span>
-          )}
+          {!isMobile && <img src={logo} alt="Vibe Coding" width={28} height={28} style={{ marginLeft: 8 }} />}
           <div className="relative flex items-center">
             <select
               value={model}
@@ -117,16 +115,6 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             title={theme === 'dark' ? '라이트 테마' : '먹 테마'}>
             {theme === 'dark' ? <Sun style={{ width: 17, height: 17 }} /> : <Moon style={{ width: 17, height: 17 }} />}
           </button>
-
-          {!isMobile && (
-            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer"
-              className="transition-colors"
-              style={{ fontSize: 'var(--fs-sm)', color: 'var(--txt-2)', padding: '0 8px' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--txt)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--txt-2)')}>
-              문서
-            </a>
-          )}
 
           <button onClick={onNewChat} disabled={busy} className="icon-btn"
             aria-label="새 대화" title={busy ? '생성 중에는 새 대화를 시작할 수 없습니다' : '새 대화'}>
