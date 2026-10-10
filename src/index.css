@@ -244,6 +244,12 @@
 
 .icon-btn:disabled { opacity: 0.4; cursor: default; background: transparent; }
 
+/* 마우스를 올리면 바탕·색이 부드럽게 바뀌고 아이콘이 살짝 커진다. 누르는 순간에는 작아진다. */
+.icon-btn { transition: background-color 0.15s, color 0.15s; }
+.icon-btn svg { transition: transform 0.15s ease; }
+.icon-btn:hover:not(:disabled) svg { transform: scale(1.12); }
+.icon-btn:active:not(:disabled) svg { transform: scale(0.92); }
+
 /*
  * 알약 툴팁. 아이콘 버튼(.icon-btn)과 .tip 을 붙인 버튼의 aria-label 을 보여 준다.
  * 기본은 버튼 아래, .tip-up 은 위. 터치 기기(hover 없음)에서는 띄우지 않는다.

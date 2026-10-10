@@ -14,7 +14,7 @@ import {
  */
 type Props = Omit<HugeiconsIconProps, 'icon'>
 
-const icon = (data: IconSvgElement) => (props: Props) => <HugeiconsIcon icon={data} {...props} />
+const icon = (data: IconSvgElement) => (props: Props) => <HugeiconsIcon icon={data} strokeWidth={2} {...props} />
 
 export const AlertCircle = icon(AlertCircleIcon)
 export const ArrowUp = icon(ArrowUp02Icon)
