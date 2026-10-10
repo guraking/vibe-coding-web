@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { FolderGit2, Loader2, X, KeyRound, ExternalLink } from 'lucide-react'
 import { fetchRepoFiles, detectProjectType } from '../services/github'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 
 /**
  * ImportModal 컴포넌트: GitHub 프로젝트 가져오기
@@ -21,6 +22,8 @@ interface Props {
 
 export default function ImportModal({ onClose, onSuccess }: Props) {
   useEscapeKey(onClose)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef)
   const [url, setUrl] = useState('')
   const [token, setToken] = useState(() => localStorage.getItem('vibe_gh_token') || '')
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
@@ -48,7 +51,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: 'rgba(20,20,19,0.4)', backdropFilter: 'blur(4px)' }}
       onMouseDown={e => { backdropPressRef.current = e.target === e.currentTarget }}
       onMouseUp={e => {
@@ -58,10 +61,11 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
       onMouseLeave={() => { backdropPressRef.current = false }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="GitHub 에서 가져오기"
-        className="w-[420px] shadow-2xl flex flex-col gap-4"
+        className="w-full max-w-[420px] shadow-2xl flex flex-col gap-4"
         style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 24 }}
         onMouseDown={() => { backdropPressRef.current = false }}
       >
@@ -77,7 +81,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             onClick={onClose}
             aria-label="닫기"
             className="flex items-center justify-center transition-colors"
-            style={{ width: 24, height: 24, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--txt-3)' }}
           >
@@ -96,7 +100,6 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleImport()}
             placeholder="https://github.com/owner/repo"
-            autoFocus
             className="px-3 py-2 outline-none"
             style={{
               background: 'var(--bg)',

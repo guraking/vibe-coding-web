@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { GitFork, Loader2, X, ExternalLink, KeyRound } from 'lucide-react'
 import { createRepoWithFiles, updateRepoWithFiles } from '../services/github'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 
 /**
  * ExportModal 컴포넌트: GitHub 프로젝트 내보내기
@@ -22,6 +23,8 @@ interface Props {
 
 export default function ExportModal({ files, githubRepo: githubRepoProp, onClose, onSuccess }: Props) {
   useEscapeKey(onClose)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef)
   // 현재 대화에 연결된 저장소만 쓴다. 없으면 새 저장소를 만든다.
   const resolvedRepo = githubRepoProp ?? null
   const [useExisting, setUseExisting] = useState(!!resolvedRepo)
@@ -64,7 +67,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: 'rgba(20,20,19,0.4)', backdropFilter: 'blur(4px)' }}
       onMouseDown={e => { backdropPressRef.current = e.target === e.currentTarget }}
       onMouseUp={e => {
@@ -74,10 +77,11 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
       onMouseLeave={() => { backdropPressRef.current = false }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="GitHub 로 내보내기"
-        className="w-96 shadow-2xl flex flex-col gap-4"
+        className="w-full max-w-96 shadow-2xl flex flex-col gap-4"
         style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 24 }}
         onMouseDown={() => { backdropPressRef.current = false }}
       >
@@ -91,7 +95,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
             onClick={onClose}
             aria-label="닫기"
             className="flex items-center justify-center transition-colors"
-            style={{ width: 24, height: 24, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--txt-3)' }}
           >

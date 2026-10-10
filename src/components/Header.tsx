@@ -1,8 +1,9 @@
-﻿import { useState } from 'react'
+﻿import { useRef, useState } from 'react'
 import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun } from 'lucide-react'
 import logo from '../logo.png'
 import { MODELS } from '../services/ai'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 
 interface Props {
   apiKey: string
@@ -31,6 +32,8 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
   const [showModal, setShowModal] = useState(false)  // API 키 설정 모달 표시 여부
   const [draft, setDraft] = useState('')  // 임시 입력 값 (저장 전)
   useEscapeKey(() => setShowModal(false), showModal)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef, showModal)
 
   // 모달 열기: 현재 API 키를 draft에 복사하고 모달 표시
   const open = () => { setDraft(apiKey); setShowModal(true) }
@@ -134,10 +137,10 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
       </header>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
           style={{ background: 'rgba(20,20,19,0.4)', backdropFilter: 'blur(4px)' }}
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div role="dialog" aria-modal="true" aria-label="API 키 설정"
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="API 키 설정"
             className="w-full max-w-md shadow-2xl overflow-hidden"
             style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
             {/* Modal title bar */}
@@ -151,7 +154,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               </div>
               <button onClick={() => setShowModal(false)}
                 aria-label="닫기"
-                className="w-6 h-6 flex items-center justify-center transition-colors"
+                className="w-8 h-8 flex items-center justify-center transition-colors"
                 style={{ color: 'var(--txt-3)' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--txt-3)' }}>
@@ -186,7 +189,6 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && save()}
                     placeholder="sk-ant-..."
-                    autoFocus
                     className="w-full px-3 py-2.5 transition-colors"
                     style={{
                       background: 'var(--bg)',

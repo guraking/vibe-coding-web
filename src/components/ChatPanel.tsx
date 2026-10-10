@@ -237,7 +237,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                   {!msg.content
                     ? <Dots />
                     : msg.content.startsWith('오류:')
-                      ? <p style={{ color: 'var(--err)', fontSize: 'var(--fs-md)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 8 }}>{msg.content}</p>
+                      ? <p role="alert" style={{ color: 'var(--err)', fontSize: 'var(--fs-md)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 8 }}>{msg.content}</p>
                       : (<>
                         <button onClick={() => onOpenAnswer(i)}
                           className="flex items-center gap-3 text-left min-w-0 flex-1 transition-colors"
@@ -297,7 +297,11 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
         {imageError && (
           <p role="alert" style={{ color: 'var(--err)', fontSize: 'var(--fs-xs)', margin: '0 4px 6px' }}>{imageError}</p>
         )}
-        <div className="transition-all"
+        {/* 화면에는 보이지 않고, 생성 시작·끝을 스크린리더에 알린다. */}
+        <span className="sr-only" aria-live="polite">
+          {isLoading ? '응답을 생성하고 있습니다' : messages.length > 0 ? '응답이 끝났습니다' : ''}
+        </span>
+        <div className="chat-input-box transition-all"
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
           style={{
@@ -343,13 +347,13 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
               <button onClick={() => fileInputRef.current?.click()}
                 disabled={!hasApiKey || isLoading || images.length >= MAX_IMAGES_PER_MESSAGE}
                 aria-label="이미지 추가" title="이미지 추가 (붙여넣기·끌어다 놓기도 됩니다)"
-                className="icon-btn" style={{ width: 28, height: 28 }}>
+                className="icon-btn">
                 <ImagePlus style={{ width: 16, height: 16 }} />
               </button>
               <input ref={fileInputRef} type="file" hidden multiple
                 accept="image/png,image/jpeg,image/gif,image/webp"
                 onChange={(e) => { void addImageFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
-              <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
+              <span className="hidden md:inline" style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
                 Shift+Enter 줄바꿈
               </span>
             </span>
