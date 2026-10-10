@@ -622,7 +622,7 @@ export default function App() {
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
+      className="flex flex-col h-dvh overflow-hidden"
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
