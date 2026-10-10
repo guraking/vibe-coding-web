@@ -13,7 +13,8 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { PanelLeft } from 'lucide-react'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
-import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
+import { AUTH_EXPIRED_EVENT, chatTitle, deleteChat, hasKey, listChats, loadChat, saveChat } from './services/chatStore'
+import LoginScreen from './components/LoginScreen'
 import type { GithubRepo } from './services/chatStore'
 import type { ChatSummary } from './services/chatStore'
 import { useEscapeKey } from './hooks/useEscapeKey'
@@ -196,9 +197,16 @@ export default function App() {
   // 대화를 바꿀 때 PreviewPanel 을 새로 마운트해 배포 상태 등 내부 상태를 비운다(예전 새로고침과 같은 효과).
   const [sessionKey, setSessionKey] = useState(0)
 
+  const [loggedIn, setLoggedIn] = useState(hasKey)
   useEffect(() => {
-    listChats().then(setChats).catch(() => setStorageError('대화 목록을 불러오지 못했습니다'))
+    const expire = () => setLoggedIn(false)
+    window.addEventListener(AUTH_EXPIRED_EVENT, expire)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expire)
   }, [])
+  useEffect(() => {
+    if (!loggedIn) return
+    listChats().then(setChats).catch(() => setStorageError('대화 목록을 불러오지 못했습니다'))
+  }, [loggedIn])
 
   // 응답이 끝났거나 코드 탭에서 파일을 고친 뒤 SAVE_DELAY_MS 동안 변화가 없으면 저장한다. 생성 중에는 저장하지 않는다.
   useEffect(() => {
@@ -220,7 +228,7 @@ export default function App() {
           setStorageError('')
           setChats((prev) => [{ id: chat.id, title: chat.title, updatedAt: chat.updatedAt }, ...prev.filter((c) => c.id !== chat.id)])
         })
-        .catch(() => setStorageError('대화를 저장하지 못했습니다 (저장 공간 부족 또는 시크릿 창)'))
+        .catch(() => setStorageError('대화를 저장하지 못했습니다 (서버에 연결할 수 없음)'))
     }, SAVE_DELAY_MS)
     return () => clearTimeout(timer)
   }, [chatId, isLoading, messages, projectFiles, projectType, githubRepo])
@@ -619,6 +627,8 @@ export default function App() {
       onClose={toggleSidebar}
     />
   )
+
+  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)} />
 
   return (
     <div
