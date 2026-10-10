@@ -11,7 +11,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
-import { PanelLeft } from 'lucide-react'
+import { PanelLeft, GripVertical } from 'lucide-react'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
 import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
 import type { GithubRepo } from './services/chatStore'
@@ -264,7 +264,9 @@ export default function App() {
    * 마우스 클릭 시 드래그 초기 상태 저장
    * 커서를 col-resize로 변경하고 텍스트 선택 방지
    */
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  const onMouseDown = useCallback((e: React.PointerEvent) => {
+    // 포인터를 손잡이에 묶어 둔다. 미리보기 iframe 위로 가도 이동·놓기 이벤트가 손잡이로 온다.
+    e.currentTarget.setPointerCapture(e.pointerId)
     isDragging.current = true
     startX.current = e.clientX
     startWidth.current = chatWidth
@@ -277,7 +279,7 @@ export default function App() {
    * 드래그 중일 때만 활성화되어 패널 너비를 실시간으로 계산 및 업데이트
    * 최소 200px 이상, 최대 화면 너비 60% 범위로 제한
    */
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
+  const onMouseMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging.current) return
     const delta = e.clientX - startX.current
     setChatWidth(clampChatWidth(startWidth.current + delta))
@@ -682,9 +684,6 @@ export default function App() {
   return (
     <div
       className="flex flex-col h-dvh overflow-hidden"
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
     >
       {/* 모바일: 대화 목록을 화면 왼쪽 서랍으로 띄운다. 바깥을 누르거나 Esc 로 닫는다. */}
       {isMobile && sidebarOpen && (
@@ -739,7 +738,10 @@ export default function App() {
         </div>
         {/* Drag handle */}
         {!isMobile && canvasOpen && <div
-          onMouseDown={onMouseDown}
+          onPointerDown={onMouseDown}
+          onPointerMove={onMouseMove}
+          onPointerUp={onMouseUp}
+          onPointerCancel={onMouseUp}
           onKeyDown={onResizerKeyDown}
           tabIndex={0}
           role="separator"
@@ -747,16 +749,10 @@ export default function App() {
           aria-label="채팅 패널 너비 조절 (←/→)"
           aria-valuenow={Math.round(chatWidth)}
           aria-valuemin={CHAT_MIN_WIDTH}
-          style={{
-            width: 1,
-            flexShrink: 0,
-            background: 'var(--border)',
-            cursor: 'col-resize',
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)')}
-          onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
-        />}
+          className="chat-resizer"
+        >
+          <span className="chat-resizer-grip" aria-hidden="true"><GripVertical style={{ width: 12, height: 12 }} /></span>
+        </div>}
         {/* Code preview panel */}
         <div className={`flex flex-1 min-w-0 ${(isMobile && mobileTab !== 'preview') || !canvasOpen ? 'hidden' : ''}`}>
           <PreviewPanel

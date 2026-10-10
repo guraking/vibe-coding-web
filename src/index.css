@@ -292,6 +292,46 @@
   cursor: pointer;
 }
 
+/* 대화 칸 ↔ 결과물 창 너비 조절 손잡이. 선은 1px 이고, 잡히는 영역(::before)은 좌우 4px 씩 넓힌다. */
+.chat-resizer {
+  position: relative;
+  width: 1px;
+  flex-shrink: 0;
+  background: var(--border);
+  cursor: col-resize;
+  touch-action: none;
+  transition: background 0.15s;
+}
+.chat-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+  z-index: 1;
+}
+.chat-resizer-grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-panel);
+  color: var(--txt-3);
+  pointer-events: none;
+}
+.chat-resizer:hover,
+.chat-resizer:active,
+.chat-resizer:focus-visible { background: var(--accent); }
+.chat-resizer:hover .chat-resizer-grip,
+.chat-resizer:active .chat-resizer-grip,
+.chat-resizer:focus-visible .chat-resizer-grip { border-color: var(--accent); color: var(--txt); }
+
 /* 대화 목록 (Sidebar) */
 .sidebar {
   width: 240px;

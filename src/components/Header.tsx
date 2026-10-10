@@ -50,7 +50,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
   return (
     <>
       {/* 대화 칸 위 48px 한 줄. 왼쪽은 모델 선택, 오른쪽은 설정·새 대화. 모바일에서는 로고를 숨긴다. */}
-      <header className="flex items-center justify-between flex-shrink-0 select-none gap-2"
+      <header className="flex items-center justify-between flex-shrink-0 select-none gap-2 w-0 min-w-full"
         style={{ height: 48, padding: '0 8px', background: 'var(--bg-panel)' }}>
         <div className="flex items-center gap-1 min-w-0">
         {/* 펼쳐져 있을 때는 사이드바 안의 접기 버튼을 쓴다. */}
@@ -60,7 +60,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           </button>
         )}
           {!isMobile && <img src={logo} alt="Vibe Coding" width={28} height={28} style={{ marginLeft: 8 }} />}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center min-w-0">
             <select
               value={model}
               onChange={e => onModelChange(e.target.value)}
@@ -74,6 +74,8 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                 background: 'transparent',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
+                maxWidth: '100%',
+                textOverflow: 'ellipsis',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -86,7 +88,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={open}
             className="flex items-center gap-1.5 transition-colors"
