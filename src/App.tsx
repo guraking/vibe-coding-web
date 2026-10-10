@@ -117,8 +117,12 @@ export default function App() {
     setLastCost(estimateCost(activeModel, usage))
     setUsageTotals(addUsage(activeModel, usage))
   }
-  // 오른쪽 패널 '답변' 탭에 띄울 메시지 위치와, 패널 탭 전환 요청
+  // 대화에서 선택된 답변 위치와, 캔버스 탭 전환 요청
   const [answerIndex, setAnswerIndex] = useState<number | null>(null)
+  // 캔버스에 띄운 버전(파일 사본이 있는 답변의 메시지 위치). null 이면 최신 버전이다.
+  const [versionIndex, setVersionIndex] = useState<number | null>(null)
+  // 캔버스 ✕ 로 닫았는지. 새 요청·결과물 카드·대화 전환 때 다시 연다.
+  const [canvasClosed, setCanvasClosed] = useState(false)
   const [panelFocus, setPanelFocus] = useState<{ tab: PanelTab; seq: number }>({ tab: 'preview', seq: 0 })
   const focusPanel = (tab: PanelTab) => setPanelFocus((prev) => ({ tab, seq: prev.seq + 1 }))
   const envKey = (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined)?.trim() || ''
@@ -345,6 +349,8 @@ export default function App() {
    */
   const handleSend = async (prompt: string, images: MessageImage[] = []) => {
     if (!activeApiKey || isLoading) return
+    // 새 요청의 결과물을 바로 보도록 닫아 둔 캔버스를 다시 연다.
+    setCanvasClosed(false)
     // 이미지만 보내고 글을 비우면 기본 요청을 넣는다. API 는 빈 텍스트 블록을 받지 않는다.
     const userMsg: Message = {
       role: 'user',
@@ -380,10 +386,9 @@ export default function App() {
     try {
       for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage, controller.signal)) {
         bufferRef.current += chunk
-        // 응답이 시작되면 코드 생성 여부와 관계없이 답변 탭에 진행 중인 답변을 띄운다.
+        // 응답이 시작되면 진행 중인 답변을 현재 답변으로 표시한다. 본문은 대화에 바로 나온다.
         if (!panelFocused && bufferRef.current.trim()) {
           panelFocused = true
-          focusPanel('answer')
           setAnswerIndex(history.length)
         }
         const parsedChunk = parseVibe(bufferRef.current)
@@ -525,6 +530,7 @@ export default function App() {
       abortRef.current = null
       // 완료·오류·중지 모두 이 응답을 답변 탭에 연다.
       setAnswerIndex(history.length)
+      setVersionIndex(null)
       setIsLoading(false)
     }
   }
@@ -555,9 +561,11 @@ export default function App() {
     setProjectType('html')
     setGithubRepo(null)
     setAnswerIndex(null)
+    setVersionIndex(null)
     setTokenUsage(null)
     setLastCost(0)
     setSessionKey((k) => k + 1)
+    setCanvasClosed(false)
     unsavedRef.current = false
   }
 
@@ -589,7 +597,8 @@ export default function App() {
       setGithubRepo(chat.githubRepo ?? null)
       const lastAnswer = chat.messages.map((m) => m.role).lastIndexOf('assistant')
       setAnswerIndex(lastAnswer >= 0 ? lastAnswer : null)
-      focusPanel('answer')
+      setVersionIndex(null)
+      focusPanel('preview')
       setMobileTab('chat')
       if (isMobile) setSidebarOpen(false)
     } catch {
@@ -610,10 +619,11 @@ export default function App() {
     }
   }
 
-  // 대화의 답변 카드를 누르면 그 답변을 패널에 연다. 모바일은 패널 탭으로 넘어간다.
+  // 대화의 결과물 카드를 누르면 캔버스를 미리보기로 연다. 모바일은 캔버스 탭으로 넘어간다.
   const handleOpenAnswer = (index: number) => {
     setAnswerIndex(index)
-    focusPanel('answer')
+    setCanvasClosed(false)
+    focusPanel('preview')
     setMobileTab('preview')
   }
 
@@ -626,13 +636,21 @@ export default function App() {
     setProjectFiles(snapshot)
     setProjectType(pType)
     unsavedRef.current = true
+    setVersionIndex(index)
   }
+
+  // 파일 사본이 있는 답변을 순서대로 v1, v2… 로 센다.
+  const versions = messages.flatMap((m, i) => (m.snapshot ? [i] : []))
+  const versionPos = versionIndex !== null && versions.includes(versionIndex) ? versions.indexOf(versionIndex) : versions.length - 1
 
   const handleFilesChange = (nextFiles: Record<string, string>) => {
     projectFilesRef.current = nextFiles
     setProjectFiles(nextFiles)
     unsavedRef.current = true
   }
+
+  // 결과물(파일)이 생기기 전이나 ✕ 로 닫았을 때는 오른쪽 패널을 숨기고 대화를 화면 가운데에 둔다.
+  const canvasOpen = Object.keys(projectFiles).length > 0 && !canvasClosed
 
   const sidebar = (
     <Sidebar
@@ -654,43 +672,11 @@ export default function App() {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
-      <Header
-        apiKey={activeApiKey}
-        model={activeModel}
-        onApiKeyChange={handleApiKeyChange}
-        onModelChange={handleModelChange}
-        isEnvKey={Boolean(envKey)}
-        isMobile={isMobile}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={toggleSidebar}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
       {/* 모바일: 대화 목록을 화면 왼쪽 서랍으로 띄운다. 바깥을 누르거나 Esc 로 닫는다. */}
       {isMobile && sidebarOpen && (
         <div className="fixed inset-0 z-40 flex" style={{ background: 'rgba(20,20,19,0.4)' }}
           onClick={(e) => e.target === e.currentTarget && setSidebarOpen(false)}>
           <div className="h-full" style={{ boxShadow: '4px 0 16px rgba(0,0,0,0.2)' }}>{sidebar}</div>
-        </div>
-      )}
-      {isMobile && (
-        <div role="tablist" className="flex flex-shrink-0" style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-          {(['chat', 'preview'] as const).map((tab) => (
-            <button key={tab} role="tab" aria-selected={mobileTab === tab} onClick={() => setMobileTab(tab)}
-              className="flex-1"
-              style={{
-                height: 44,
-                fontFamily: 'var(--ui-font)',
-                fontSize: 'var(--fs-sm)',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: mobileTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
-                color: mobileTab === tab ? 'var(--txt)' : 'var(--txt-2)',
-                cursor: 'pointer',
-              }}>
-              {tab === 'chat' ? 'Chat' : 'Preview'}
-            </button>
-          ))}
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">
@@ -703,14 +689,30 @@ export default function App() {
               </button>
             </div>)}
         {/* 모바일에서도 두 패널을 모두 마운트해 둔다. 탭 전환으로 입력 중인 내용·배포 상태가 사라지지 않게 하기 위함이다. */}
-        <div className={`flex min-w-0 ${isMobile ? 'flex-1' : ''} ${isMobile && mobileTab !== 'chat' ? 'hidden' : ''}`}>
+        <div className={`flex flex-col min-w-0 ${isMobile || !canvasOpen ? 'flex-1' : ''} ${isMobile && canvasOpen && mobileTab !== 'chat' ? 'hidden' : ''}`}>
+          <Header
+            apiKey={activeApiKey}
+            model={activeModel}
+            onApiKeyChange={handleApiKeyChange}
+            onModelChange={handleModelChange}
+            isEnvKey={Boolean(envKey)}
+            isMobile={isMobile}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={toggleSidebar}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onNewChat={handleNewChat}
+            busy={isLoading}
+          />
+          {/* ChatPanel 은 가로 줄 안에서 너비를 잡도록 짜여 있어 남은 높이를 채우는 가로 줄로 감싼다. */}
+          <div className="flex flex-1 min-h-0">
           <ChatPanel
             messages={messages}
             onSend={handleSend}
             onStop={handleStop}
             isLoading={isLoading}
             hasApiKey={!!activeApiKey}
-            width={isMobile ? undefined : chatWidth}
+            width={isMobile || !canvasOpen ? undefined : chatWidth}
             tokenUsage={tokenUsage}
             lastCost={lastCost}
             usageTotals={usageTotals}
@@ -718,11 +720,11 @@ export default function App() {
             activeAnswerIndex={answerIndex}
             onOpenAnswer={handleOpenAnswer}
             onRestore={handleRestore}
-            onNewChat={handleNewChat}
           />
+          </div>
         </div>
         {/* Drag handle */}
-        {!isMobile && <div
+        {!isMobile && canvasOpen && <div
           onMouseDown={onMouseDown}
           onKeyDown={onResizerKeyDown}
           tabIndex={0}
@@ -742,7 +744,7 @@ export default function App() {
           onMouseLeave={e => { if (!isDragging.current) e.currentTarget.style.background = 'var(--border)' }}
         />}
         {/* Code preview panel */}
-        <div className={`flex flex-1 min-w-0 ${isMobile && mobileTab !== 'preview' ? 'hidden' : ''}`}>
+        <div className={`flex flex-1 min-w-0 ${(isMobile && mobileTab !== 'preview') || !canvasOpen ? 'hidden' : ''}`}>
           <PreviewPanel
             key={sessionKey}
             files={projectFiles}
@@ -752,8 +754,10 @@ export default function App() {
             onFilesChange={handleFilesChange}
             githubRepo={githubRepo}
             onGithubRepoChange={handleGithubRepoChange}
-            answer={answerIndex !== null ? messages[answerIndex] ?? null : null}
             focus={panelFocus}
+            onClose={() => (isMobile ? setMobileTab('chat') : setCanvasClosed(true))}
+            version={{ pos: versionPos, total: versions.length }}
+            onVersionChange={(pos) => handleRestore(versions[pos])}
           />
         </div>
       </div>

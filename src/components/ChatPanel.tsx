@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, RotateCcw, AlertCircle, FileText, ImagePlus, X, Square, History } from 'lucide-react'
-import ClaudeMascot from './ClaudeMascot'
+import { ArrowUp, AlertCircle, FileText, ImagePlus, X, Square, History } from 'lucide-react'
+import AnswerView from './AnswerView'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
 import { formatUsd } from '../services/usage'
@@ -32,19 +32,11 @@ interface Props {
   lastCost: number
   usageTotals: UsageTotals
   onResetUsage: () => void
-  // Claude 답변 본문은 오른쪽 패널에 표시하고, 여기서는 카드로만 보여준다.
+  // 결과물 카드 중 지금 캔버스에 연 답변. 그 카드를 강조한다.
   activeAnswerIndex: number | null
-  // 새 대화 시작. 페이지를 새로고침하지 않고 화면 상태만 비운다.
-  onNewChat: () => void
   onOpenAnswer: (index: number) => void
   // 파일 사본(snapshot)이 있는 답변을 그 시점 버전으로 되돌린다.
   onRestore: (index: number) => void
-}
-
-// 카드 제목: 답변 첫 줄에서 마크다운 기호를 걷어낸 텍스트
-function answerTitle(content: string): string {
-  const line = content.split('\n').find((l) => l.trim()) ?? ''
-  return line.replace(/^[#>*\-\s`]+/, '').replace(/[*`]/g, '').trim()
 }
 
 const SUGGESTIONS = [
@@ -76,7 +68,7 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onRestore, onNewChat }: Props) {
+export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onRestore }: Props) {
   // 마지막 답변은 현재 버전이라 되돌리기 버튼을 두지 않는다.
   const lastAnswerIndex = messages.map((m) => m.role).lastIndexOf('assistant')
   const [input, setInput] = useState('')
@@ -138,155 +130,9 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
 
   const canSend = (!!input.trim() || images.length > 0) && !isLoading && hasApiKey
 
-  return (
-    <div className="flex flex-col flex-shrink-0"
-      style={{
-        width: width ?? '100%',
-        minWidth: width ? 220 : undefined,
-        maxWidth: width ? '60vw' : undefined,
-        background: 'var(--bg-panel)',
-        flex: width ? undefined : '1',
-      }}>
-
-      {/* Section header */}
-      <div className="flex items-center justify-between px-4 flex-shrink-0"
-        style={{ height: 44, borderBottom: '1px solid var(--border-s)' }}>
-        <span style={{ color: 'var(--txt)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>대화</span>
-        {messages.length > 0 && (
-          <button onClick={onNewChat} disabled={isLoading}
-            className="flex items-center gap-1.5 transition-colors"
-            style={{ color: 'var(--txt-2)', fontSize: 'var(--fs-sm)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}>
-            <RotateCcw style={{ width: 12, height: 12 }} />
-            <span>새 대화</span>
-          </button>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {messages.length === 0 ? (
-          <div className="flex flex-col h-full">
-            {/* Empty state */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-              <ClaudeMascot width={64} />
-              <div className="text-center">
-                <p style={{ color: 'var(--txt)', fontFamily: 'var(--display-font)', fontSize: 20, fontWeight: 600, marginBottom: 6 }}>
-                  무엇을 만들어 볼까요?
-                </p>
-                <p style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)' }}>
-                  아이디어를 설명하면 Claude가 디자인 방향을 먼저 제안하고 코드로 만들어 드려요
-                </p>
-              </div>
-            </div>
-
-            {/* Suggestions */}
-            <div className="px-4 pb-4 flex flex-wrap gap-2">
-              {SUGGESTIONS.map(s => (
-                <button key={s.label}
-                  onClick={() => { setInput(s.desc); taRef.current?.focus() }}
-                  className="transition-colors"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: 'var(--fs-sm)',
-                    color: 'var(--txt-2)',
-                    background: 'var(--bg-panel)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 999,
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; e.currentTarget.style.color = 'var(--txt)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--txt-2)' }}>
-                  {s.desc}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col px-4 py-4 gap-4">
-            {messages.map((msg, i) => (
-              msg.role === 'user' ? (
-                /* 사용자 메시지: 오른쪽 말풍선 */
-                <div key={i} className="flex flex-col items-end gap-1.5">
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="flex flex-wrap justify-end gap-1.5" style={{ maxWidth: '85%' }}>
-                      {msg.images.map((img, k) => (
-                        <img key={k} src={imageSrc(img)} alt={`첨부 이미지 ${k + 1}`} className="chat-image" />
-                      ))}
-                    </div>
-                  )}
-                  <p style={{
-                    maxWidth: '85%',
-                    padding: '8px 14px',
-                    background: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-lg)',
-                    color: 'var(--txt)',
-                    fontSize: 'var(--fs-md)',
-                    lineHeight: 1.6,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}>
-                    {msg.content}
-                  </p>
-                </div>
-              ) : (
-                /* Claude 메시지: 본문은 오른쪽 패널, 여기서는 여는 카드. 오류는 카드 없이 바로 보여준다. */
-                <div key={i} className="flex gap-2.5 min-w-0">
-                  <ClaudeMascot width={32} style={{ marginTop: 12 }} />
-                  {!msg.content
-                    ? <Dots />
-                    : msg.content.startsWith('오류:')
-                      ? <p role="alert" style={{ color: 'var(--err)', fontSize: 'var(--fs-md)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 8 }}>{msg.content}</p>
-                      : (<>
-                        <button onClick={() => onOpenAnswer(i)}
-                          className="flex items-center gap-3 text-left min-w-0 flex-1 transition-colors"
-                          aria-pressed={activeAnswerIndex === i}
-                          style={{
-                            padding: '10px 12px',
-                            background: activeAnswerIndex === i ? 'var(--bg-card)' : 'var(--bg-panel)',
-                            border: `1px solid ${activeAnswerIndex === i ? 'var(--accent-bd)' : 'var(--border)'}`,
-                            borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer',
-                          }}>
-                          <FileText style={{ width: 18, height: 18, color: 'var(--txt-2)', flexShrink: 0 }} />
-                          <span className="flex flex-col min-w-0">
-                            <span className="truncate" style={{ color: 'var(--txt)', fontSize: 'var(--fs-md)', fontWeight: 500 }}>
-                              {answerTitle(msg.content) || '답변'}
-                            </span>
-                            <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
-                              {msg.files && Object.keys(msg.files).length > 0
-                                ? `파일 ${Object.keys(msg.files).length}개 · 눌러서 보기`
-                                : '눌러서 답변 보기'}
-                            </span>
-                          </span>
-                        </button>
-                        {msg.snapshot && i !== lastAnswerIndex && !isLoading && (
-                          <button onClick={() => onRestore(i)}
-                            className="self-center flex items-center justify-center flex-shrink-0 transition-colors"
-                            title="이 버전으로 되돌리기"
-                            aria-label="이 답변 시점의 버전으로 되돌리기"
-                            style={{ width: 32, height: 32, color: 'var(--txt-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)', cursor: 'pointer' }}>
-                            <History style={{ width: 16, height: 16 }} />
-                          </button>
-                        )}
-                      </>)}
-                </div>
-              )
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex gap-2.5">
-                <ClaudeMascot width={32} style={{ marginTop: 3 }} />
-                <Dots />
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="flex-shrink-0 px-3 pb-3 pt-2">
+  // 입력창 묶음. 대화가 비어 있으면 화면 가운데에, 있으면 아래에 둔다.
+  const composer = (
+      <div className="flex-shrink-0 px-3 pb-3 pt-2 w-full max-w-[760px] mx-auto">
         {!hasApiKey && (
           <div className="flex items-center gap-2 px-3 py-2 mb-2"
             style={{ background: 'var(--err-bg)', border: '1px solid var(--err-bd)', borderRadius: 'var(--radius-md)', color: 'var(--err)', fontSize: 'var(--fs-sm)' }}>
@@ -379,10 +225,144 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
           </div>
         </div>
       </div>
+  )
+
+  return (
+    <div className="flex flex-col flex-shrink-0"
+      style={{
+        width: width ?? '100%',
+        minWidth: width ? 220 : undefined,
+        maxWidth: width ? '60vw' : undefined,
+        background: 'var(--bg-panel)',
+        flex: width ? undefined : '1',
+      }}>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {messages.length === 0 ? (
+          <div className="flex flex-col h-full items-center justify-center gap-4 px-3 pb-16">
+            {/* 빈 화면: 제목 → 입력창 → 추천 순서로 가운데에 둔다. */}
+            <div className="text-center px-3">
+              <p style={{ color: 'var(--txt)', fontFamily: 'var(--display-font)', fontSize: 28, fontWeight: 500, marginBottom: 6 }}>
+                무엇을 만들어 볼까요?
+              </p>
+              <p style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)' }}>
+                아이디어를 설명하면 Claude가 디자인 방향을 먼저 제안하고 코드로 만들어 드려요
+              </p>
+            </div>
+            {composer}
+
+            {/* Suggestions */}
+            <div className="px-4 flex flex-wrap justify-center gap-2 w-full max-w-[760px]">
+              {SUGGESTIONS.map(s => (
+                <button key={s.label}
+                  onClick={() => { setInput(s.desc); taRef.current?.focus() }}
+                  className="transition-colors"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 'var(--fs-sm)',
+                    color: 'var(--txt-2)',
+                    background: 'var(--bg-panel)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-bd)'; e.currentTarget.style.color = 'var(--txt)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--txt-2)' }}>
+                  {s.desc}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col px-4 py-4 gap-4 w-full max-w-[760px] mx-auto">
+            {messages.map((msg, i) => (
+              msg.role === 'user' ? (
+                /* 사용자 메시지: 오른쪽 말풍선 */
+                <div key={i} className="flex flex-col items-end gap-1.5">
+                  {msg.images && msg.images.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-1.5" style={{ maxWidth: '85%' }}>
+                      {msg.images.map((img, k) => (
+                        <img key={k} src={imageSrc(img)} alt={`첨부 이미지 ${k + 1}`} className="chat-image" />
+                      ))}
+                    </div>
+                  )}
+                  <p style={{
+                    maxWidth: '85%',
+                    padding: '8px 14px',
+                    background: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-lg)',
+                    color: 'var(--txt)',
+                    fontSize: 'var(--fs-md)',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}>
+                    {msg.content}
+                  </p>
+                </div>
+              ) : (
+                /* Claude 메시지: 본문은 대화에 바로 보여 주고, 파일을 만든 답변에는 결과물 카드를 붙인다. 오류는 본문 대신 오류 문구만 보여준다. */
+                <div key={i} className="flex flex-col gap-2.5 min-w-0">
+                  {!msg.content
+                    ? <Dots />
+                    : msg.content.startsWith('오류:')
+                      ? <p role="alert" style={{ color: 'var(--err)', fontSize: 'var(--fs-md)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 8 }}>{msg.content}</p>
+                      : (<>
+                        {/* 파일 코드는 캔버스에서 보므로 대화에는 본문만 렌더링한다. */}
+                        <div className="chat-answer"><AnswerView message={{ ...msg, files: undefined }} /></div>
+                        {msg.files && Object.keys(msg.files).length > 0 && (
+                        <div className="flex gap-2.5 min-w-0">
+                        <button onClick={() => onOpenAnswer(i)}
+                          className="flex items-center gap-3 text-left min-w-0 flex-1 transition-colors"
+                          aria-pressed={activeAnswerIndex === i}
+                          style={{
+                            padding: '10px 12px',
+                            background: activeAnswerIndex === i ? 'var(--bg-card)' : 'var(--bg-panel)',
+                            border: `1px solid ${activeAnswerIndex === i ? 'var(--accent-bd)' : 'var(--border)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                          }}>
+                          <FileText style={{ width: 18, height: 18, color: 'var(--txt-2)', flexShrink: 0 }} />
+                          <span className="flex flex-col min-w-0">
+                            <span className="truncate" style={{ color: 'var(--txt)', fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                              결과물
+                            </span>
+                            <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)' }}>
+                              {`파일 ${Object.keys(msg.files).length}개 · 눌러서 보기`}
+                            </span>
+                          </span>
+                        </button>
+                        {msg.snapshot && i !== lastAnswerIndex && !isLoading && (
+                          <button onClick={() => onRestore(i)}
+                            className="self-center flex items-center justify-center flex-shrink-0 transition-colors"
+                            title="이 버전으로 되돌리기"
+                            aria-label="이 답변 시점의 버전으로 되돌리기"
+                            style={{ width: 32, height: 32, color: 'var(--txt-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)', cursor: 'pointer' }}>
+                            <History style={{ width: 16, height: 16 }} />
+                          </button>
+                        )}
+                        </div>
+                        )}
+                      </>)}
+                </div>
+              )
+            ))}
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+              <div className="flex gap-2.5">
+                <Dots />
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+
+      {messages.length > 0 && composer}
 
       {/* 사용량: 이번 요청 + 이 브라우저의 오늘·누적 예상 비용. 비용은 단가로 계산한 근사값이다. */}
       {(tokenUsage || usageTotals.totalTokens > 0) && (
-        <div className="flex-shrink-0 px-4 pb-3 flex flex-col gap-0.5"
+        <div className="flex-shrink-0 px-4 pb-3 flex flex-col gap-0.5 w-full max-w-[760px] mx-auto"
           style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-xs)', fontVariantNumeric: 'tabular-nums' }}>
           {tokenUsage && (
             <span>

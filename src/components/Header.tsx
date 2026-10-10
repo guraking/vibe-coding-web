@@ -1,6 +1,5 @@
 ﻿import { useRef, useState } from 'react'
-import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun } from 'lucide-react'
-import logo from '../logo.png'
+import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun, SquarePen } from 'lucide-react'
 import { MODELS } from '../services/ai'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useDialogFocus } from '../hooks/useDialogFocus'
@@ -16,19 +15,21 @@ interface Props {
   onToggleSidebar: () => void
   theme: 'light' | 'dark'
   onToggleTheme: () => void
+  // 새 대화 시작. 페이지를 새로고침하지 않고 화면 상태만 비운다. 생성 중(busy)에는 막는다.
+  onNewChat: () => void
+  busy: boolean
 }
 
 const ENV_VAR = 'VITE_ANTHROPIC_API_KEY'
 const DOCS_URL = 'https://platform.claude.com/docs'
 
 /**
- * Header 컴포넌트: 상단 네비게이션 바
- * - 로고 및 앱 제목 표시
- * - Claude 모델 선택 드롭다운
- * - API 키 설정 모달
+ * Header 컴포넌트: 대화 칸 위 머리줄
+ * - 왼쪽: Claude 모델 선택
+ * - 오른쪽: API 키 설정 모달, 테마 전환, 문서 링크, 새 대화
  * - 모바일/데스크톱 반응형 레이아웃
  */
-export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile, sidebarOpen, onToggleSidebar, theme, onToggleTheme }: Props) {
+export default function Header({ apiKey, model, onApiKeyChange, onModelChange, isEnvKey, isMobile, sidebarOpen, onToggleSidebar, theme, onToggleTheme, onNewChat, busy }: Props) {
   const [showModal, setShowModal] = useState(false)  // API 키 설정 모달 표시 여부
   const [draft, setDraft] = useState('')  // 임시 입력 값 (저장 전)
   useEscapeKey(() => setShowModal(false), showModal)
@@ -43,35 +44,24 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
     onApiKeyChange(draft.trim())
     setShowModal(false)
   }
-  
-  // 페이지 새로고침: 세션 초기화 (새로운 채팅 시작)
-  const reloadPage = () => window.location.reload()
 
   const hasActiveKey = !!apiKey
 
   return (
     <>
-      {/* Top bar: 데스크톱·모바일 공통 48px 한 줄. 모바일에서는 부제·Docs 를 숨긴다. */}
-      <header className="flex items-center justify-between flex-shrink-0 select-none gap-3"
-        style={{ height: 48, padding: '0 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2">
+      {/* 대화 칸 위 48px 한 줄. 왼쪽은 모델 선택, 오른쪽은 설정·새 대화. 모바일에서는 문서 링크를 숨긴다. */}
+      <header className="flex items-center justify-between flex-shrink-0 select-none gap-2"
+        style={{ height: 48, padding: '0 8px', background: 'var(--bg-panel)' }}>
+        <div className="flex items-center gap-1 min-w-0">
         {/* 펼쳐져 있을 때는 사이드바 안의 접기 버튼을 쓴다. */}
         {isMobile && !sidebarOpen && (
           <button onClick={onToggleSidebar} className="icon-btn" aria-label="대화 목록 펼치기" aria-expanded={false}>
             <PanelLeft style={{ width: 18, height: 18 }} />
           </button>
         )}
-        <button onClick={reloadPage} className="flex items-center gap-2" aria-label="새 세션 시작"
-          style={{ background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer', padding: 0 }}>
-          <img src={logo} alt="" width={30} height={30} />
-          {!isMobile && <span style={{ fontFamily: 'var(--display-font)', fontSize: 'var(--fs-lg)', fontWeight: 600 }}>Vibe Coding</span>}
           {!isMobile && (
-            <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)', marginLeft: 4 }}>with Claude</span>
+            <span style={{ fontFamily: 'var(--display-font)', fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--txt)', paddingLeft: 8 }}>Vibe</span>
           )}
-        </button>
-        </div>
-
-        <div className="flex items-center gap-2">
           <div className="relative flex items-center">
             <select
               value={model}
@@ -79,22 +69,26 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               aria-label="모델 선택"
               className="appearance-none cursor-pointer transition-colors"
               style={{
-                height: 32,
-                padding: '0 28px 0 12px',
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--txt)',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
+                height: 40,
+                padding: '0 28px 0 8px',
+                fontSize: 'var(--fs-lg)',
+                color: 'var(--txt-2)',
+                background: 'transparent',
+                border: 'none',
                 borderRadius: 'var(--radius-md)',
               }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               {MODELS.map(m => (
-                <option key={m.id} value={m.id}>{isMobile ? m.label.replace('Claude ', '') : m.label}</option>
+                <option key={m.id} value={m.id}>{m.label.replace('Claude ', '')}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--txt-3)' }} />
           </div>
+        </div>
 
+        <div className="flex items-center gap-1">
           <button
             onClick={open}
             className="flex items-center gap-1.5 transition-colors"
@@ -133,6 +127,11 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               문서
             </a>
           )}
+
+          <button onClick={onNewChat} disabled={busy} className="icon-btn"
+            aria-label="새 대화" title={busy ? '생성 중에는 새 대화를 시작할 수 없습니다' : '새 대화'}>
+            <SquarePen style={{ width: 17, height: 17 }} />
+          </button>
         </div>
       </header>
 

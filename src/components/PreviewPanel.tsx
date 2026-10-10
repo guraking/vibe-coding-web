@@ -1,11 +1,10 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History, Download } from 'lucide-react'
+import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History, Download, X, Ellipsis, ChevronLeft, ChevronRight } from 'lucide-react'
 import JSZip from 'jszip'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'
-import AnswerView from './AnswerView'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { fetchDeploymentUrl, deployToGitHubPages } from '../services/github'
-import type { Message } from '../services/ai'
 import type { GithubRepo } from '../services/chatStore'
 import { highlightCode } from '../services/highlight'
 
@@ -30,13 +29,16 @@ interface Props {
   // 현재 대화에 연결된 저장소. 대화별로 App 이 저장하고, import·export 성공 시 onGithubRepoChange 로 바꾼다.
   githubRepo: GithubRepo | null
   onGithubRepoChange: (repo: GithubRepo) => void
-  // 답변 탭에 표시할 메시지. null 이면 빈 안내를 보여준다.
-  answer: Message | null
   // seq 가 바뀔 때마다 tab 으로 전환한다. 같은 탭을 다시 요청해도 반영되도록 seq 를 둔다.
   focus: { tab: PanelTab; seq: number }
+  // 캔버스 닫기(✕). 닫으면 App 이 대화를 화면 가운데로 돌린다.
+  onClose: () => void
+  // 파일 사본 버전 중 지금 띄운 위치(0부터)와 전체 수. 위치를 바꾸면 App 이 확인 후 그 버전으로 되돌린다.
+  version: { pos: number; total: number }
+  onVersionChange: (pos: number) => void
 }
 
-export type PanelTab = 'answer' | 'preview' | 'code'
+export type PanelTab = 'preview' | 'code'
 
 type DeploymentHistoryItem = { owner: string; repo: string; branch: string; url: string; deployedAt: number }
 
@@ -167,8 +169,23 @@ function PixelLoadingBar({
   )
 }
 
-export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange, githubRepo, onGithubRepoChange, answer, focus }: Props) {
-  const [tab, setTab] = useState<Tab>('answer')
+export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange, githubRepo, onGithubRepoChange, focus, onClose, version, onVersionChange }: Props) {
+  const [tab, setTab] = useState<Tab>('preview')
+  // ⋯ 메뉴(다운로드·가져오기·배포 URL·배포 기록). 바깥 클릭과 Esc 로 닫는다.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  useEscapeKey(() => setMenuOpen(false), menuOpen)
+  useEffect(() => {
+    if (!menuOpen) return
+    // 메뉴 버튼을 누른 것은 버튼의 onClick 이 토글하므로 바깥 클릭으로 치지 않는다.
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (!menuRef.current?.contains(target) && !menuButtonRef.current?.contains(target)) setMenuOpen(false)
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [menuOpen])
   useEffect(() => {
     if (focus.seq > 0) setTab(focus.tab)
   }, [focus])
@@ -514,30 +531,43 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   )
 
   return (
-    <div className="flex flex-col flex-1 min-w-0" style={{ background: 'var(--bg)' }}>
-      {/* Tab bar */}
-      <div className="panel-toolbar flex items-center flex-shrink-0"
-        style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 44, padding: '0 8px' }}>
+    <div className="relative flex flex-col flex-1 min-w-0" style={{ background: 'var(--bg)' }}>
+      {/* 캔버스 머리줄: 닫기·탭·보기 도구는 왼쪽, GitHub·게시·⋯ 메뉴는 오른쪽 */}
+      <div className="panel-toolbar flex items-center gap-1 flex-shrink-0"
+        style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 48, padding: '0 8px' }}>
+        <button onClick={onClose} className="icon-btn" aria-label="캔버스 닫기" title="캔버스 닫기">
+          <X style={{ width: 16, height: 16 }} />
+        </button>
         <div role="tablist" className="flex items-center gap-0.5"
           style={{ background: 'var(--bg-card)', padding: 3, borderRadius: 'var(--radius-md)' }}>
           {/* 컴포넌트(<TabBtn />)로 쓰면 렌더마다 새 타입이 되어 버튼이 다시 만들어지고, 스트리밍 중 클릭이 성립하지 않는다. */}
-          {TabBtn({ id: 'answer', icon: FileText, label: '답변' })}
           {TabBtn({ id: 'preview', icon: Eye, label: '미리보기' })}
           {TabBtn({ id: 'code', icon: Code2, label: `코드${hasFiles ? ` ${fileNames.length}` : ''}` })}
         </div>
-        <div className="w-2" />
 
-        {/* 생성된 파일 전체를 폴더 구조 그대로 ZIP 으로 내려받는다. */}
-        {hasFiles && (
-          <button onClick={downloadZip}
-            className="flex items-center gap-1.5 transition-all"
-            style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
-            title="프로젝트 전체를 ZIP 으로 다운로드">
-            <Download style={{ width: 12, height: 12 }} />
-            <span>다운로드</span>
-          </button>
+        {version.total > 1 && (
+          <div className="flex items-center" style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
+            <button onClick={() => onVersionChange(version.pos - 1)} disabled={isLoading || version.pos <= 0}
+              className="icon-btn" aria-label="이전 버전" title="이전 버전">
+              <ChevronLeft style={{ width: 16, height: 16 }} />
+            </button>
+            <span aria-live="polite" style={{ minWidth: 44, textAlign: 'center' }}>v{version.pos + 1} / {version.total}</span>
+            <button onClick={() => onVersionChange(version.pos + 1)} disabled={isLoading || version.pos >= version.total - 1}
+              className="icon-btn" aria-label="다음 버전" title="다음 버전">
+              <ChevronRight style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+        )}
+
+        {previewSrc && tab === 'preview' && (
+          <>
+            <button onClick={refresh} className="icon-btn" aria-label="미리보기 새로고침" title="새로고침">
+              <RefreshCw style={{ width: 14, height: 14 }} />
+            </button>
+            <button onClick={openNew} className="icon-btn" aria-label="새 창에서 열기" title="새 창에서 열기">
+              <ExternalLink style={{ width: 14, height: 14 }} />
+            </button>
+          </>
         )}
 
         {hasFiles && tab === 'code' && (
@@ -554,59 +584,6 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           </button>
         )}
 
-        {previewSrc && tab === 'preview' && (
-          <>
-            {deployUrl && repoDeployHistory.length > 0 && (
-              <div className="flex items-center gap-1 px-2" style={{ borderLeft: '1px solid var(--border-s)', borderRight: '1px solid var(--border-s)', marginRight: 4 }}>
-                <History style={{ width: 11, height: 11, color: 'var(--txt-3)' }} />
-                <select
-                  value={deployUrl}
-                  onChange={e => { setDeployUrl(e.target.value); setIframeKey(k => k + 1) }}
-                  className="appearance-none bg-transparent"
-                  style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', height: 28, maxWidth: '100%' }}
-                  title="배포 URL 기록"
-                >
-                  {repoDeployHistory.map((item) => (
-                    <option key={`${item.url}_${item.deployedAt}`} value={item.url}>
-                      {formatHistoryTime(item.deployedAt)} · {item.url}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <button onClick={refresh}
-              aria-label="미리보기 새로고침"
-              className="flex items-center justify-center transition-all"
-              style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-3)'; e.currentTarget.style.background = 'transparent' }}
-              title="새로고침">
-              <RefreshCw style={{ width: 12, height: 12 }} />
-            </button>
-            {deployUrl && (
-              <button onClick={copyDeployUrl}
-                className="flex items-center gap-1.5 transition-all"
-                style={deployUrlCopied
-                  ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', border: 'none', cursor: 'pointer' }
-                  : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-                onMouseEnter={e => { if (!deployUrlCopied) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-                onMouseLeave={e => { if (!deployUrlCopied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
-                title="배포 URL 복사">
-                {deployUrlCopied ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
-                <span>{deployUrlCopied ? 'URL 복사됨' : 'URL 복사'}</span>
-              </button>
-            )}
-            <button onClick={openNew}
-              className="flex items-center gap-1.5 transition-all"
-              style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' }}
-              title="새 창에서 열기">
-              <ExternalLink style={{ width: 12, height: 12 }} /><span>새 창</span>
-            </button>
-          </>
-        )}
-
         <div className="flex-1" />
 
         {isLoading && (
@@ -617,30 +594,18 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           </div>
         )}
 
-        {/* GitHub 관련 버튼은 오른쪽 끝에 모은다. */}
-        {/* GitHub import button */}
-        <button onClick={() => setShowImport(true)}
-          className="flex items-center gap-1.5 transition-all"
-          style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' }}
-          title="GitHub 저장소 가져오기">
-          <FolderGit2 style={{ width: 12, height: 12 }} />
-          <span>가져오기</span>
-        </button>
-
-        {/* GitHub export button */}
+        {/* GitHub 커밋·푸시. 저장소가 연결돼 있으면 강조해서 보여준다. */}
         {hasFiles && (
           <button onClick={handleCommitPush}
             className="flex items-center gap-1.5 transition-all"
             style={githubRepo
-              ? { color: 'var(--accent)', background: 'var(--accent-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', border: '1px solid var(--accent-bd)', cursor: 'pointer' }
-              : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-            onMouseLeave={e => { if (!githubRepo) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'none' } }}
+              ? { color: 'var(--accent)', background: 'var(--accent-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '0 12px', height: 32, borderRadius: 999, border: '1px solid var(--accent-bd)', cursor: 'pointer' }
+              : { color: 'var(--txt)', background: 'none', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '0 12px', height: 32, borderRadius: 999, border: '1px solid var(--border)', cursor: 'pointer' }}
+            onMouseEnter={e => { if (!githubRepo) e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { if (!githubRepo) e.currentTarget.style.background = 'none' }}
             title="GitHub 에 커밋·푸시">
             <GitFork style={{ width: 12, height: 12 }} />
-            <span>커밋/푸시</span>
+            <span>GitHub</span>
           </button>
         )}
 
@@ -650,30 +615,73 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
             disabled={deployStep === 'deploying'}
             className="flex items-center gap-1.5 transition-all disabled:opacity-50"
             style={{
-              color: 'var(--txt-2)',
+              color: 'var(--on-accent)',
+              background: 'var(--accent)',
               fontFamily: 'var(--ui-font)',
               fontSize: 'var(--fs-sm)',
-              padding: '2px 10px',
-              background: 'none',
+              fontWeight: 600,
+              padding: '0 14px',
+              height: 32,
+              borderRadius: 999,
               border: 'none',
               cursor: deployStep === 'deploying' ? 'default' : 'pointer',
             }}
-            onMouseEnter={e => { if (deployStep !== 'deploying') { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-            onMouseLeave={e => { if (deployStep !== 'deploying') { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
-            title="GitHub Pages 에 배포"
+            onMouseEnter={e => { if (deployStep !== 'deploying') e.currentTarget.style.background = 'var(--accent-h)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent)' }}
+            title="GitHub Pages 에 게시"
           >
             <ExternalLink style={{ width: 12, height: 12 }} />
-            <span>{deployStep === 'deploying' ? '배포 중...' : '배포'}</span>
+            <span>{deployStep === 'deploying' ? '게시 중...' : '게시'}</span>
           </button>
         )}
+
+        <button ref={menuButtonRef} onClick={() => setMenuOpen((o) => !o)} className="icon-btn"
+          aria-label="더보기" aria-haspopup="menu" aria-expanded={menuOpen} title="더보기">
+          <Ellipsis style={{ width: 16, height: 16 }} />
+        </button>
       </div>
+
+      {/* ⋯ 메뉴. 모바일에서 머리줄이 가로 스크롤되면 그 안의 메뉴가 잘리므로 머리줄 밖(패널 기준)에 띄운다. */}
+      {menuOpen && (
+        <div ref={menuRef} role="menu" aria-label="더보기"
+          style={{ position: 'absolute', right: 8, top: 52, zIndex: 30, minWidth: 240, maxWidth: 'calc(100% - 16px)', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4 }}>
+          {hasFiles && (
+            <button role="menuitem" className="panel-menu-item" onClick={() => { setMenuOpen(false); void downloadZip() }}>
+              <Download style={{ width: 14, height: 14 }} />ZIP 으로 다운로드
+            </button>
+          )}
+          <button role="menuitem" className="panel-menu-item" onClick={() => { setMenuOpen(false); setShowImport(true) }}>
+            <FolderGit2 style={{ width: 14, height: 14 }} />GitHub 에서 가져오기
+          </button>
+          {deployUrl && (
+            <button role="menuitem" className="panel-menu-item" onClick={() => { void copyDeployUrl() }}>
+              {deployUrlCopied ? <Check style={{ width: 14, height: 14 }} /> : <Copy style={{ width: 14, height: 14 }} />}
+              {deployUrlCopied ? 'URL 복사됨' : '게시 URL 복사'}
+            </button>
+          )}
+          {deployUrl && repoDeployHistory.length > 0 && (
+            <label className="panel-menu-item" style={{ cursor: 'default' }}>
+              <History style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <select
+                value={deployUrl}
+                onChange={e => { setDeployUrl(e.target.value); setIframeKey(k => k + 1) }}
+                className="bg-transparent min-w-0 flex-1"
+                style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', height: 28 }}
+                aria-label="게시 기록"
+              >
+                {repoDeployHistory.map((item) => (
+                  <option key={`${item.url}_${item.deployedAt}`} value={item.url}>
+                    {formatHistoryTime(item.deployedAt)} · {item.url}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Answer tab */}
-        <div className={`absolute inset-0 overflow-y-auto ${tab === 'answer' ? 'block' : 'hidden'}`} style={{ background: 'var(--bg)' }}>
-          <AnswerView message={answer} />
-        </div>
 
         {/* Preview tab */}
         <div className={`absolute inset-0 ${tab === 'preview' ? 'flex' : 'hidden'} flex-col`}>
