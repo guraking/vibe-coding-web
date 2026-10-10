@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo } from 'react'
-import { Eye, Code2, Copy, Check, ExternalLink, FileCode2, RefreshCw, FileText, FileJson, Palette, GitFork, FolderGit2, KeyRound, History, Download, X, Ellipsis, ChevronLeft, ChevronRight } from 'lucide-react'
+import { EyeIcon as Eye, CodeIcon as Code2, CopyIcon as Copy, CheckIcon as Check, ArrowSquareOutIcon as ExternalLink, FileCodeIcon as FileCode2, ArrowClockwiseIcon as RefreshCw, FileTextIcon as FileText, BracketsCurlyIcon as FileJson, PaletteIcon as Palette, GitForkIcon as GitFork, FolderSimpleIcon as FolderGit2, KeyIcon as KeyRound, ClockCounterClockwiseIcon as History, DownloadSimpleIcon as Download, XIcon as X, DotsThreeIcon as Ellipsis, CaretLeftIcon as ChevronLeft, CaretRightIcon as ChevronRight } from '@phosphor-icons/react'
 import JSZip from 'jszip'
 import ExportModal from './ExportModal'
 import ImportModal from './ImportModal'

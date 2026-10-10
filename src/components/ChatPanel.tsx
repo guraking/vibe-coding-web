@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, AlertCircle, FileText, ImagePlus, X, Square, History } from 'lucide-react'
+import { ArrowUpIcon as ArrowUp, WarningCircleIcon as AlertCircle, FileTextIcon as FileText, ImageSquareIcon as ImagePlus, XIcon as X, SquareIcon as Square, ClockCounterClockwiseIcon as History } from '@phosphor-icons/react'
 import AnswerView from './AnswerView'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
@@ -220,7 +220,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
               onMouseEnter={e => { if (canSend || isLoading) e.currentTarget.style.background = 'var(--accent-h)' }}
               onMouseLeave={e => { if (canSend || isLoading) e.currentTarget.style.background = 'var(--accent)' }}>
               {isLoading
-                ? <Square style={{ width: 12, height: 12 }} fill="currentColor" />
+                ? <Square style={{ width: 12, height: 12 }} weight="fill" />
                 : <ArrowUp style={{ width: 16, height: 16 }} />}
             </button>
           </div>

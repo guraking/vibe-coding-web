@@ -1,5 +1,5 @@
 ﻿import { useRef, useState } from 'react'
-import { ChevronDown, KeyRound, X, PanelLeft, Moon, Sun, SquarePen } from 'lucide-react'
+import { CaretDownIcon as ChevronDown, KeyIcon as KeyRound, XIcon as X, SidebarSimpleIcon as PanelLeft, MoonIcon as Moon, SunIcon as Sun, NotePencilIcon as SquarePen } from '@phosphor-icons/react'
 import logo from '../logo.png'
 import { MODELS } from '../services/ai'
 import { useEscapeKey } from '../hooks/useEscapeKey'

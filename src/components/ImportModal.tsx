@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { FolderGit2, Loader2, X, KeyRound, ExternalLink } from 'lucide-react'
+import { FolderSimpleIcon as FolderGit2, CircleNotchIcon as Loader2, XIcon as X, KeyIcon as KeyRound, ArrowSquareOutIcon as ExternalLink } from '@phosphor-icons/react'
 import { fetchRepoFiles, detectProjectType } from '../services/github'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useDialogFocus } from '../hooks/useDialogFocus'
