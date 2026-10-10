@@ -200,6 +200,18 @@ export default function App() {
     listChats().then(setChats).catch(() => setStorageError('대화 목록을 불러오지 못했습니다'))
   }, [])
 
+  // 새로고침해도 마지막에 열어 둔 대화를 다시 연다. 아래 기억 effect 가 키를 지우기 전에 읽어야 하므로 이 순서를 유지한다.
+  useEffect(() => {
+    const lastId = localStorage.getItem('vibe_chat_id')
+    if (lastId) handleSelectChat(lastId)
+  }, [])
+
+  // 열린 대화 id 를 기억한다. 새 대화(null)면 지워서 다음 로드가 새 대화로 시작하게 한다.
+  useEffect(() => {
+    if (chatId) localStorage.setItem('vibe_chat_id', chatId)
+    else localStorage.removeItem('vibe_chat_id')
+  }, [chatId])
+
   // 응답이 끝났거나 코드 탭에서 파일을 고친 뒤 SAVE_DELAY_MS 동안 변화가 없으면 저장한다. 생성 중에는 저장하지 않는다.
   useEffect(() => {
     if (!chatId || isLoading || messages.length === 0 || !unsavedRef.current) return
