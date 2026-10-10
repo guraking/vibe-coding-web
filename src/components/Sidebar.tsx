@@ -1,4 +1,4 @@
-import { PlusIcon as Plus, TrashIcon as Trash2, ChatCircleIcon as MessageSquare, SidebarSimpleIcon as PanelLeft, CircleNotchIcon as Loader2 } from '@phosphor-icons/react'
+import { Plus, Trash2, MessageSquare, PanelLeft, Loader2 } from '../icons'
 import type { ChatSummary } from '../services/chatStore'
 
 /**

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { GitForkIcon as GitFork, CircleNotchIcon as Loader2, XIcon as X, ArrowSquareOutIcon as ExternalLink, KeyIcon as KeyRound } from '@phosphor-icons/react'
+import { GitFork, Loader2, X, ExternalLink, KeyRound } from '../icons'
 import { createRepoWithFiles, updateRepoWithFiles } from '../services/github'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useDialogFocus } from '../hooks/useDialogFocus'

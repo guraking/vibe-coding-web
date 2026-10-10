@@ -11,7 +11,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
-import { SidebarSimpleIcon as PanelLeft, DotsSixVerticalIcon as GripVertical } from '@phosphor-icons/react'
+import { PanelLeft, GripVertical } from './icons'
 import Sidebar from './components/Sidebar'  // 좌측 대화 목록
 import { chatTitle, deleteChat, listChats, loadChat, saveChat } from './services/chatStore'
 import type { GithubRepo } from './services/chatStore'
