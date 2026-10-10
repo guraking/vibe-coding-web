@@ -69,7 +69,7 @@ export default function Sidebar({ chats, activeId, loadingId, busy, error, onSel
                       : <MessageSquare aria-hidden="true" style={{ width: 14, height: 14, flexShrink: 0 }} />}
                     <span className="truncate">{chat.title}</span>
                   </button>
-                  <button onClick={() => onDelete(chat.id)} disabled={busy} className="sidebar-item-delete" aria-label={`${chat.title} 삭제`}>
+                  <button onClick={() => onDelete(chat.id)} disabled={busy} className="sidebar-item-delete tip" aria-label={`${chat.title} 삭제`}>
                     <Trash2 style={{ width: 14, height: 14 }} />
                   </button>
                 </li>

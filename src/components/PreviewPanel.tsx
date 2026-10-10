@@ -511,6 +511,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
       style={{
         height: 28,
         padding: '0 12px',
+        borderRadius: 999,
         fontFamily: 'var(--ui-font)',
         fontSize: 'var(--fs-sm)',
         fontWeight: tab === id ? 600 : 400,
@@ -535,11 +536,11 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
       {/* 캔버스 머리줄: 닫기·탭·보기 도구는 왼쪽, GitHub·게시·⋯ 메뉴는 오른쪽 */}
       <div className="panel-toolbar flex items-center gap-1 flex-shrink-0"
         style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 48, padding: '0 8px' }}>
-        <button onClick={onClose} className="icon-btn" aria-label="캔버스 닫기" title="캔버스 닫기">
+        <button onClick={onClose} className="icon-btn" aria-label="캔버스 닫기">
           <X style={{ width: 16, height: 16 }} />
         </button>
         <div role="tablist" className="flex items-center gap-0.5"
-          style={{ background: 'var(--bg-card)', padding: 3, borderRadius: 'var(--radius-md)' }}>
+          style={{ background: 'var(--bg-card)', padding: 3, borderRadius: 999 }}>
           {/* 컴포넌트(<TabBtn />)로 쓰면 렌더마다 새 타입이 되어 버튼이 다시 만들어지고, 스트리밍 중 클릭이 성립하지 않는다. */}
           {TabBtn({ id: 'preview', icon: Eye, label: '미리보기' })}
           {TabBtn({ id: 'code', icon: Code2, label: `코드${hasFiles ? ` ${fileNames.length}` : ''}` })}
@@ -548,12 +549,12 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
         {version.total > 1 && (
           <div className="flex items-center" style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
             <button onClick={() => onVersionChange(version.pos - 1)} disabled={isLoading || version.pos <= 0}
-              className="icon-btn" aria-label="이전 버전" title="이전 버전">
+              className="icon-btn" aria-label="이전 버전">
               <ChevronLeft style={{ width: 16, height: 16 }} />
             </button>
             <span aria-live="polite" style={{ minWidth: 44, textAlign: 'center' }}>v{version.pos + 1} / {version.total}</span>
             <button onClick={() => onVersionChange(version.pos + 1)} disabled={isLoading || version.pos >= version.total - 1}
-              className="icon-btn" aria-label="다음 버전" title="다음 버전">
+              className="icon-btn" aria-label="다음 버전">
               <ChevronRight style={{ width: 16, height: 16 }} />
             </button>
           </div>
@@ -561,10 +562,10 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
 
         {previewSrc && tab === 'preview' && (
           <>
-            <button onClick={refresh} className="icon-btn" aria-label="미리보기 새로고침" title="새로고침">
+            <button onClick={refresh} className="icon-btn" aria-label="미리보기 새로고침">
               <RefreshCw style={{ width: 14, height: 14 }} />
             </button>
-            <button onClick={openNew} className="icon-btn" aria-label="새 창에서 열기" title="새 창에서 열기">
+            <button onClick={openNew} className="icon-btn" aria-label="새 창에서 열기">
               <ExternalLink style={{ width: 14, height: 14 }} />
             </button>
           </>
@@ -574,8 +575,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
           <button onClick={copyFile}
             className="flex items-center gap-1.5 transition-all"
             style={copied
-              ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', border: 'none', cursor: 'pointer' }
-              : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
+              ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', border: 'none', borderRadius: 999, cursor: 'pointer' }
+              : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', borderRadius: 999, cursor: 'pointer' }}
             onMouseEnter={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
             onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
             title="파일 복사">
@@ -636,7 +637,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
         )}
 
         <button ref={menuButtonRef} onClick={() => setMenuOpen((o) => !o)} className="icon-btn"
-          aria-label="더보기" aria-haspopup="menu" aria-expanded={menuOpen} title="더보기">
+          aria-label="더보기" aria-haspopup="menu" aria-expanded={menuOpen}>
           <Ellipsis style={{ width: 16, height: 16 }} />
         </button>
       </div>

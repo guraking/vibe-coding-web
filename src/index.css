@@ -233,7 +233,9 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  position: relative;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: var(--txt-2);
   cursor: pointer;
@@ -241,6 +243,45 @@
 .icon-btn:hover { background: var(--bg-hover); color: var(--txt); }
 
 .icon-btn:disabled { opacity: 0.4; cursor: default; background: transparent; }
+
+/*
+ * 알약 툴팁. 아이콘 버튼(.icon-btn)과 .tip 을 붙인 버튼의 aria-label 을 보여 준다.
+ * 기본은 버튼 아래, .tip-up 은 위. 터치 기기(hover 없음)에서는 띄우지 않는다.
+ * :where 로 position 의 우선순위를 0 으로 둬서 이미 absolute 로 배치된 버튼(.chat-image-remove)을 덮지 않는다.
+ */
+:where(.tip) { position: relative; }
+:is(.icon-btn, .tip)[aria-label]::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: 220px;
+  padding: 4px 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--txt);
+  color: var(--bg-panel);
+  font-family: var(--ui-font);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+:is(.icon-btn, .tip).tip-up[aria-label]::after { top: auto; bottom: calc(100% + 6px); }
+/* 화면·목록 가장자리의 버튼은 툴팁이 잘리지 않게 버튼 한쪽 끝에 맞춘다. */
+.sidebar-rail .icon-btn::after { left: 0; transform: none; }
+.sidebar-item-delete.tip::after { left: auto; right: 0; transform: none; }
+:is(.icon-btn, .tip)[aria-label]:hover::after { opacity: 1; transition-delay: 0.3s; }
+:is(.icon-btn, .tip)[aria-label]:focus-visible::after { opacity: 1; }
+@media (hover: none) {
+  :is(.icon-btn, .tip)[aria-label]::after { display: none; }
+}
 
 /* 캔버스 ⋯ 메뉴 항목 */
 .panel-menu-item {
@@ -356,7 +397,7 @@
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: var(--bg-panel);
   color: var(--txt);
   font-size: var(--fs-md);
@@ -396,6 +437,7 @@
   padding: 6px;
   margin-right: 4px;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: var(--txt-3);
   cursor: pointer;
@@ -501,6 +543,7 @@
   gap: 4px;
   padding: 3px 8px;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--txt-2);
   font-size: var(--fs-xs);

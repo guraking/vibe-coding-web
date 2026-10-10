@@ -94,10 +94,7 @@ export default function ExportModal({ files, githubRepo: githubRepoProp, onClose
           <button
             onClick={onClose}
             aria-label="닫기"
-            className="flex items-center justify-center transition-colors"
-            style={{ width: 32, height: 32, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--txt-3)' }}
+            className="icon-btn"
           >
             <X style={{ width: 14, height: 14 }} />
           </button>

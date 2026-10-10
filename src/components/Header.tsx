@@ -101,7 +101,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               color: 'var(--txt-2)',
               background: 'transparent',
               border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 999,
               cursor: 'pointer',
             }}
           >
@@ -113,13 +113,12 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           </button>
 
           <button onClick={onToggleTheme} className="icon-btn"
-            aria-label={theme === 'dark' ? '라이트 테마로 전환' : '먹 테마로 전환'}
-            title={theme === 'dark' ? '라이트 테마' : '먹 테마'}>
+            aria-label={theme === 'dark' ? '라이트 테마로 전환' : '먹 테마로 전환'}>
             {theme === 'dark' ? <Sun style={{ width: 17, height: 17 }} /> : <Moon style={{ width: 17, height: 17 }} />}
           </button>
 
           <button onClick={onNewChat} disabled={busy} className="icon-btn"
-            aria-label="새 대화" title={busy ? '생성 중에는 새 대화를 시작할 수 없습니다' : '새 대화'}>
+            aria-label={busy ? '생성 중에는 새 대화를 시작할 수 없습니다' : '새 대화'}>
             <SquarePen style={{ width: 17, height: 17 }} />
           </button>
         </div>
@@ -143,10 +142,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               </div>
               <button onClick={() => setShowModal(false)}
                 aria-label="닫기"
-                className="w-8 h-8 flex items-center justify-center transition-colors"
-                style={{ color: 'var(--txt-3)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--txt)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--txt-3)' }}>
+                className="icon-btn">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>

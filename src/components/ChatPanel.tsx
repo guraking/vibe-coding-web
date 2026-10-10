@@ -163,7 +163,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                 <div key={k} className="relative">
                   <img src={imageSrc(img)} alt={`보낼 이미지 ${k + 1}`} className="chat-image-draft" />
                   <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== k))}
-                    aria-label={`이미지 ${k + 1} 빼기`} className="chat-image-remove">
+                    aria-label={`이미지 ${k + 1} 빼기`} className="chat-image-remove tip tip-up">
                     <X style={{ width: 12, height: 12 }} />
                   </button>
                 </div>
@@ -193,8 +193,8 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
             <span className="flex items-center gap-2">
               <button onClick={() => fileInputRef.current?.click()}
                 disabled={!hasApiKey || isLoading || images.length >= MAX_IMAGES_PER_MESSAGE}
-                aria-label="이미지 추가" title="이미지 추가 (붙여넣기·끌어다 놓기도 됩니다)"
-                className="icon-btn">
+                aria-label="이미지 추가 (붙여넣기·끌어다 놓기도 됩니다)"
+                className="icon-btn tip-up">
                 <ImagePlus style={{ width: 16, height: 16 }} />
               </button>
               <input ref={fileInputRef} type="file" hidden multiple
@@ -206,8 +206,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
             </span>
             <button onClick={isLoading ? onStop : submit} disabled={!isLoading && !canSend}
               aria-label={isLoading ? '생성 중지' : '전송'}
-              title={isLoading ? '생성 중지' : undefined}
-              className="flex items-center justify-center transition-colors"
+              className="tip tip-up flex items-center justify-center transition-colors"
               style={{
                 width: 32,
                 height: 32,
@@ -336,10 +335,9 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                         </button>
                         {msg.snapshot && i !== lastAnswerIndex && !isLoading && (
                           <button onClick={() => onRestore(i)}
-                            className="self-center flex items-center justify-center flex-shrink-0 transition-colors"
-                            title="이 버전으로 되돌리기"
+                            className="icon-btn tip-up self-center flex-shrink-0"
                             aria-label="이 답변 시점의 버전으로 되돌리기"
-                            style={{ width: 32, height: 32, color: 'var(--txt-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)', cursor: 'pointer' }}>
+                            style={{ border: '1px solid var(--border)' }}>
                             <History style={{ width: 16, height: 16 }} />
                           </button>
                         )}
