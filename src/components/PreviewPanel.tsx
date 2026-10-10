@@ -168,7 +168,7 @@ function PixelLoadingBar({
 }
 
 export default function PreviewPanel({ files, projectType, isLoading, onImport, onFilesChange, githubRepo, onGithubRepoChange, answer, focus }: Props) {
-  const [tab, setTab] = useState<Tab>('preview')
+  const [tab, setTab] = useState<Tab>('answer')
   useEffect(() => {
     if (focus.seq > 0) setTab(focus.tab)
   }, [focus])

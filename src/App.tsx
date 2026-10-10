@@ -366,14 +366,11 @@ export default function App() {
     try {
       for await (const chunk of streamCode(activeApiKey, activeModel, history, Object.keys(projectFiles).length ? projectFiles : undefined, recordUsage, controller.signal)) {
         bufferRef.current += chunk
-        // 응답 첫 글자로 패널 탭을 고른다: 코드 생성 응답은 <VIBE_FILE> 로 시작하므로 미리보기, 그 외는 답변.
-        // shortcut: 모델이 태그 앞에 설명을 먼저 쓰면 답변 탭이 열린다. 오분류가 잦으면 '<VIBE_' 등장 시 미리보기로 재전환한다.
+        // 응답이 시작되면 코드 생성 여부와 관계없이 답변 탭에 진행 중인 답변을 띄운다.
         if (!panelFocused && bufferRef.current.trim()) {
           panelFocused = true
-          const isCode = bufferRef.current.trim().startsWith('<')
-          focusPanel(isCode ? 'preview' : 'answer')
-          // 코드 생성 응답은 설명이 끝에 오므로, 끝날 때까지 답변 탭에 이전 답변을 남겨 둔다.
-          if (!isCode) setAnswerIndex(history.length)
+          focusPanel('answer')
+          setAnswerIndex(history.length)
         }
         const parsedChunk = parseVibe(bufferRef.current)
         const { explanation } = parsedChunk
@@ -576,7 +573,7 @@ export default function App() {
       setGithubRepo(chat.githubRepo ?? null)
       const lastAnswer = chat.messages.map((m) => m.role).lastIndexOf('assistant')
       setAnswerIndex(lastAnswer >= 0 ? lastAnswer : null)
-      focusPanel(Object.keys(chat.projectFiles).length > 0 ? 'preview' : 'answer')
+      focusPanel('answer')
       setMobileTab('chat')
       if (isMobile) setSidebarOpen(false)
     } catch {
