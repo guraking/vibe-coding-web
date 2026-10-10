@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, RotateCcw, AlertCircle, FileText, ImagePlus, X, Square } from 'lucide-react'
+import { ArrowUp, RotateCcw, AlertCircle, FileText, ImagePlus, X, Square, History } from 'lucide-react'
 import ClaudeMascot from './ClaudeMascot'
 import type { Message, MessageImage, TokenUsage } from '../services/ai'
 import { imageSrc, MAX_IMAGES_PER_MESSAGE, readImage } from '../services/image'
@@ -37,6 +37,8 @@ interface Props {
   // 새 대화 시작. 페이지를 새로고침하지 않고 화면 상태만 비운다.
   onNewChat: () => void
   onOpenAnswer: (index: number) => void
+  // 파일 사본(snapshot)이 있는 답변을 그 시점 버전으로 되돌린다.
+  onRestore: (index: number) => void
 }
 
 // 카드 제목: 답변 첫 줄에서 마크다운 기호를 걷어낸 텍스트
@@ -74,7 +76,9 @@ function Dots() {
   )
 }
 
-export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onNewChat }: Props) {
+export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiKey, width, tokenUsage, lastCost, usageTotals, onResetUsage, activeAnswerIndex, onOpenAnswer, onRestore, onNewChat }: Props) {
+  // 마지막 답변은 현재 버전이라 되돌리기 버튼을 두지 않는다.
+  const lastAnswerIndex = messages.map((m) => m.role).lastIndexOf('assistant')
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -234,7 +238,7 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                     ? <Dots />
                     : msg.content.startsWith('오류:')
                       ? <p style={{ color: 'var(--err)', fontSize: 'var(--fs-md)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 8 }}>{msg.content}</p>
-                      : (
+                      : (<>
                         <button onClick={() => onOpenAnswer(i)}
                           className="flex items-center gap-3 text-left min-w-0 flex-1 transition-colors"
                           aria-pressed={activeAnswerIndex === i}
@@ -257,7 +261,16 @@ export default function ChatPanel({ messages, onSend, onStop, isLoading, hasApiK
                             </span>
                           </span>
                         </button>
-                      )}
+                        {msg.snapshot && i !== lastAnswerIndex && !isLoading && (
+                          <button onClick={() => onRestore(i)}
+                            className="self-center flex items-center justify-center flex-shrink-0 transition-colors"
+                            title="이 버전으로 되돌리기"
+                            aria-label="이 답변 시점의 버전으로 되돌리기"
+                            style={{ width: 32, height: 32, color: 'var(--txt-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-panel)', cursor: 'pointer' }}>
+                            <History style={{ width: 16, height: 16 }} />
+                          </button>
+                        )}
+                      </>)}
                 </div>
               )
             ))}

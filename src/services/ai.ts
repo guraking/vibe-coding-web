@@ -12,6 +12,8 @@ export interface Message {
   files?: Record<string, string>
   projectType?: 'html' | 'react' | 'vue'
   images?: MessageImage[]
+  // 이 답변이 끝난 시점의 전체 프로젝트 파일. 버전 되돌리기에만 쓰고 API 로는 보내지 않는다.
+  snapshot?: Record<string, string>
 }
 
 export interface TokenUsage {

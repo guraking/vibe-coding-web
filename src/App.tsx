@@ -486,6 +486,8 @@ export default function App() {
             ? '완성됐습니다! 코드 탭에서 소스를 확인할 수 있어요.'
             : bufferRef.current.trim()),
           files,
+          // 파일을 만든 답변만 되돌리기 지점이 된다.
+          ...(Object.keys(files).length > 0 ? { snapshot: projectFilesRef.current, projectType: pType } : {}),
         }
         return updated
       })
@@ -615,6 +617,17 @@ export default function App() {
     setMobileTab('preview')
   }
 
+  // 답변 시점의 파일 사본으로 현재 프로젝트를 바꾼다. 코드 탭에서 직접 고친 내용도 함께 사라지므로 먼저 확인받는다.
+  const handleRestore = (index: number) => {
+    const { snapshot, projectType: pType } = messages[index] ?? {}
+    if (isLoading || !snapshot || !pType) return
+    if (!window.confirm('현재 파일(코드 탭에서 직접 고친 내용 포함)이 이 답변 시점의 버전으로 바뀝니다. 되돌릴까요?')) return
+    projectFilesRef.current = snapshot
+    setProjectFiles(snapshot)
+    setProjectType(pType)
+    unsavedRef.current = true
+  }
+
   const handleFilesChange = (nextFiles: Record<string, string>) => {
     projectFilesRef.current = nextFiles
     setProjectFiles(nextFiles)
@@ -704,6 +717,7 @@ export default function App() {
             onResetUsage={() => setUsageTotals(resetUsage())}
             activeAnswerIndex={answerIndex}
             onOpenAnswer={handleOpenAnswer}
+            onRestore={handleRestore}
             onNewChat={handleNewChat}
           />
         </div>
