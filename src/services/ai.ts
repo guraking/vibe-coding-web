@@ -15,7 +15,10 @@ export interface Message {
 }
 
 export interface TokenUsage {
+  // 캐시 쓰기·읽기 토큰을 포함한 전체 입력 토큰
   promptTokens: number
+  cacheWriteTokens: number
+  cacheReadTokens: number
   completionTokens: number
   totalTokens: number
   limitPerMin: number
@@ -31,6 +34,8 @@ export interface AIModel {
   // 100만 토큰당 USD 단가. 예상 비용 표시에만 쓴다.
   inputPerMTok: number
   outputPerMTok: number
+  // 캐시 읽기 단가. 모델마다 입력 단가 대비 비율이 달라 따로 둔다. 캐시 쓰기는 모든 모델이 입력 단가의 1.25배(5분 TTL)다.
+  cacheReadPerMTok: number
   // 프롬프트가 overTokens 를 넘으면 입·출력 단가에 multiplier 를 곱한다.
   longPrompt?: { overTokens: number; multiplier: number }
 }
@@ -38,10 +43,10 @@ export interface AIModel {
 // 첫 항목이 기본 모델이다.
 // 단가 출처: Anthropic 공식 가격표(2026-10 기준). 가격이 바뀌면 여기만 고친다.
 export const MODELS: AIModel[] = [
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', fallback: true, inputPerMTok: 2, outputPerMTok: 10 },
-  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true, inputPerMTok: 4, outputPerMTok: 20 },
-  // Haiku 5.5 는 프롬프트 10만 토큰 초과 시 $0.50 / $2.50 (5배)
-  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', fallback: false, inputPerMTok: 0.1, outputPerMTok: 0.5, longPrompt: { overTokens: 100_000, multiplier: 5 } },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', fallback: true, inputPerMTok: 2, outputPerMTok: 10, cacheReadPerMTok: 0.1 },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', fallback: true, inputPerMTok: 4, outputPerMTok: 20, cacheReadPerMTok: 0.2 },
+  // Haiku 5.5 는 프롬프트(캐시 토큰 포함) 10만 토큰 초과 시 캐시 단가까지 모든 단가가 5배
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', fallback: false, inputPerMTok: 0.1, outputPerMTok: 0.5, cacheReadPerMTok: 0.01, longPrompt: { overTokens: 100_000, multiplier: 5 } },
 ]
 
 const SYSTEM_PROMPT = `You are Vibe Coding AI — an expert frontend developer and product designer who builds multi-file web projects from natural language.
@@ -246,7 +251,11 @@ export async function* streamCode(
     model,
     // 멀티 파일 프로젝트 전체를 한 응답에 담으므로 넉넉히 잡는다. 스트리밍이라 HTTP 타임아웃 대상이 아니다.
     max_tokens: 64000,
-    system: SYSTEM_PROMPT + currentContext,
+    // 고정 프롬프트만 캐시한다. 파일 내용은 요청마다 바뀌어 캐시해도 적중하지 않는다.
+    system: [
+      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      ...(currentContext ? [{ type: 'text' as const, text: currentContext }] : []),
+    ],
     // 이미지가 있는 메시지는 이미지 블록들 뒤에 텍스트를 둔다(이미지를 먼저 두는 것이 권장 순서).
     // 이전 턴의 이미지도 매번 다시 보내야 Claude 가 그 이미지를 참조할 수 있다.
     messages: messages.map((m) => ({
@@ -273,10 +282,16 @@ export async function* streamCode(
     const reason = final.stop_details?.explanation
     throw new Error(reason ? `Claude가 요청을 거절했습니다: ${reason}` : 'Claude가 요청을 거절했습니다')
   }
+  // input_tokens 는 캐시 토큰을 뺀 값이라 캐시 쓰기·읽기를 더해야 전체 입력이 된다.
+  const cacheWriteTokens = final.usage.cache_creation_input_tokens ?? 0
+  const cacheReadTokens = final.usage.cache_read_input_tokens ?? 0
+  const promptTokens = final.usage.input_tokens + cacheWriteTokens + cacheReadTokens
   onUsage?.({
-    promptTokens: final.usage.input_tokens,
+    promptTokens,
+    cacheWriteTokens,
+    cacheReadTokens,
     completionTokens: final.usage.output_tokens,
-    totalTokens: final.usage.input_tokens + final.usage.output_tokens,
+    totalTokens: promptTokens + final.usage.output_tokens,
     // Anthropic rate limit 헤더는 브라우저 CORS 에 노출되지 않으므로 -1(표시 안 함)로 둔다.
     limitPerMin: -1,
     remainingPerMin: -1,

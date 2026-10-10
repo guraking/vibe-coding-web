@@ -15,6 +15,8 @@ export interface UsageTotals {
 }
 
 const STORAGE_KEY = 'vibe_usage'
+// 5분 TTL 캐시 쓰기는 입력 단가의 1.25배다(Anthropic 가격표, 모든 모델 공통).
+const CACHE_WRITE_MULTIPLIER = 1.25
 
 function today(): string {
   // sv 로캘은 YYYY-MM-DD 형식을 준다.
@@ -26,12 +28,17 @@ function empty(): UsageTotals {
 }
 
 /** 모델 단가로 계산한 요청 1건의 예상 비용(USD). 모르는 모델이면 0. */
-export function estimateCost(modelId: string, usage: Pick<TokenUsage, 'promptTokens' | 'completionTokens'>): number {
+export function estimateCost(modelId: string, usage: Pick<TokenUsage, 'promptTokens' | 'cacheWriteTokens' | 'cacheReadTokens' | 'completionTokens'>): number {
   const model = MODELS.find((m) => m.id === modelId)
   if (!model) return 0
+  // 긴 프롬프트 판정은 캐시 토큰을 포함한 전체 입력 기준이다(Anthropic 가격표).
   const over = model.longPrompt && usage.promptTokens > model.longPrompt.overTokens
   const multiplier = over ? model.longPrompt!.multiplier : 1
-  return ((usage.promptTokens * model.inputPerMTok + usage.completionTokens * model.outputPerMTok) * multiplier) / 1_000_000
+  const uncached = usage.promptTokens - usage.cacheWriteTokens - usage.cacheReadTokens
+  const input = uncached * model.inputPerMTok
+    + usage.cacheWriteTokens * model.inputPerMTok * CACHE_WRITE_MULTIPLIER
+    + usage.cacheReadTokens * model.cacheReadPerMTok
+  return ((input + usage.completionTokens * model.outputPerMTok) * multiplier) / 1_000_000
 }
 
 export function loadUsage(): UsageTotals {
