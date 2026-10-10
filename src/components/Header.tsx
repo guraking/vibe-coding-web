@@ -169,7 +169,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               </div>
               <div>
                 <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', marginBottom: 8 }}>
-                  방법 2 — 직접 입력 (브라우저에 저장)
+                  방법 2 — 직접 입력 (브라우저에 저장, 대화 저장 시 서버로 전송)
                 </p>
                 <div>
                   <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
@@ -197,6 +197,9 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
                       fontSize: 'var(--fs-md)',
                     }}
                   />
+                  <p style={{ color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-xs)', marginTop: 6 }}>
+                    대화를 저장·불러올 때 이 키가 이 사이트의 저장 서버로 전송됩니다. 서버는 키가 유효한지만 확인하고 키를 저장하지 않습니다.
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-1">
