@@ -1020,7 +1020,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between px-4 flex-shrink-0 select-none"
+      <div className="panel-statusbar flex items-center justify-between px-4 flex-shrink-0 select-none"
         style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', height: 24, color: 'var(--txt-3)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)' }}>
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--txt-2)' }}>vibe-coding-web</span>

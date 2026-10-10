@@ -499,6 +499,10 @@
   .panel-toolbar > button > span { display: none; }
   .panel-toolbar select { max-width: 110px !important; } /* 배포 기록 select 의 인라인 maxWidth 를 덮는다 */
 
+  /* 좁은 화면에서는 상태바를 한 줄로 고정하고, 덜 중요한 오른쪽(UTF-8 · 파일/줄 수)은 숨긴다. */
+  .panel-statusbar { white-space: nowrap; overflow: hidden; }
+  .panel-statusbar > :last-child { display: none; }
+
   /* Safe area support */
   /* 브라우저에서는 하단 툴바가 홈바 영역을 덮으므로, 홈 화면 앱(standalone)으로 실행할 때만 여백을 둔다. */
   @media (display-mode: standalone) {
