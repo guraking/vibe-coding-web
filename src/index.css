@@ -493,6 +493,12 @@
 
   .answer-md { max-width: none; padding: 20px 16px 40px; }
 
+  /* 좁은 화면에서는 툴바 버튼을 아이콘만 남기고, 넘치면 가로 스크롤한다. 탭(답변·미리보기·코드) 라벨은 유지. */
+  .panel-toolbar { overflow-x: auto; scrollbar-width: none; }
+  .panel-toolbar > * { flex-shrink: 0; }
+  .panel-toolbar > button > span { display: none; }
+  .panel-toolbar select { max-width: 110px !important; } /* 배포 기록 select 의 인라인 maxWidth 를 덮는다 */
+
   /* Safe area support */
   body {
     padding-bottom: env(safe-area-inset-bottom);

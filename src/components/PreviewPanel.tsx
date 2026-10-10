@@ -516,7 +516,7 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
   return (
     <div className="flex flex-col flex-1 min-w-0" style={{ background: 'var(--bg)' }}>
       {/* Tab bar */}
-      <div className="flex items-center flex-shrink-0"
+      <div className="panel-toolbar flex items-center flex-shrink-0"
         style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: 44, padding: '0 8px' }}>
         <div role="tablist" className="flex items-center gap-0.5"
           style={{ background: 'var(--bg-card)', padding: 3, borderRadius: 'var(--radius-md)' }}>
@@ -547,7 +547,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
               ? { color: 'var(--ok)', background: 'var(--ok-bg)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', border: 'none', cursor: 'pointer' }
               : { color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' } }}
-            onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}>
+            onMouseLeave={e => { if (!copied) { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' } }}
+            title="파일 복사">
             {copied ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
             <span>{copied ? '복사됨' : '복사'}</span>
           </button>
@@ -599,7 +600,8 @@ export default function PreviewPanel({ files, projectType, isLoading, onImport, 
               className="flex items-center gap-1.5 transition-all"
               style={{ color: 'var(--txt-2)', fontFamily: 'var(--ui-font)', fontSize: 'var(--fs-sm)', padding: '2px 10px', background: 'none', border: 'none', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.color = 'var(--txt)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' }}>
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.background = 'transparent' }}
+              title="새 창에서 열기">
               <ExternalLink style={{ width: 12, height: 12 }} /><span>새 창</span>
             </button>
           </>
