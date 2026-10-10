@@ -61,7 +61,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
         <button onClick={reloadPage} className="flex items-center gap-2" aria-label="새 세션 시작"
           style={{ background: 'transparent', border: 'none', color: 'var(--txt)', cursor: 'pointer', padding: 0 }}>
           <img src={logo} alt="" width={30} height={30} />
-          <span style={{ fontFamily: 'var(--display-font)', fontSize: 'var(--fs-lg)', fontWeight: 600 }}>Vibe Coding</span>
+          {!isMobile && <span style={{ fontFamily: 'var(--display-font)', fontSize: 'var(--fs-lg)', fontWeight: 600 }}>Vibe Coding</span>}
           {!isMobile && (
             <span style={{ color: 'var(--txt-3)', fontSize: 'var(--fs-sm)', marginLeft: 4 }}>with Claude</span>
           )}
@@ -86,7 +86,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
               }}
             >
               {MODELS.map(m => (
-                <option key={m.id} value={m.id}>{m.label}</option>
+                <option key={m.id} value={m.id}>{isMobile ? m.label.replace('Claude ', '') : m.label}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--txt-3)' }} />
@@ -96,6 +96,7 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
             onClick={open}
             className="flex items-center gap-1.5 transition-colors"
             title={isEnvKey ? '.env.local에서 로드됨' : 'API 키 설정'}
+            aria-label={hasActiveKey ? 'API 키' : 'API 키 필요'}
             style={{
               height: 32,
               padding: '0 12px',
@@ -109,7 +110,9 @@ export default function Header({ apiKey, model, onApiKeyChange, onModelChange, i
           >
             {/* 상태는 색 점과 문구를 함께 써서 색만으로 전달하지 않는다. */}
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: hasActiveKey ? 'var(--ok)' : 'var(--err)' }} />
-            <span>{hasActiveKey ? 'API 키' : 'API 키 필요'}</span>
+            {isMobile
+              ? <KeyRound style={{ width: 15, height: 15 }} aria-hidden="true" />
+              : <span>{hasActiveKey ? 'API 키' : 'API 키 필요'}</span>}
           </button>
 
           <button onClick={onToggleTheme} className="icon-btn"
